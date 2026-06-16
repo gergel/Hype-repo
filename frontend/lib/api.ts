@@ -124,15 +124,41 @@ export async function reorderVideos(projectId: string, ordered_ids: string[]) {
   });
 }
 
-export async function uploadVideo(projectId: string, file: File, title: string) {
-  const fd = new FormData();
-  fd.append("file", file);
-  const res = await fetch(
-    `${BASE}/admin/projects/${projectId}/videos?title=${encodeURIComponent(title)}`,
-    { method: "POST", headers: authHeaders(), body: fd }
-  );
-  if (!res.ok) throw new Error("Upload failed");
-  return res.json();
+export function uploadVideo(
+  projectId: string,
+  file: File,
+  title: string,
+  onProgress?: (percent: number) => void
+): Promise<unknown> {
+  return new Promise((resolve, reject) => {
+    const fd = new FormData();
+    fd.append("file", file);
+    const xhr = new XMLHttpRequest();
+    xhr.open(
+      "POST",
+      `${BASE}/admin/projects/${projectId}/videos?title=${encodeURIComponent(title)}`
+    );
+    const token =
+      typeof window !== "undefined"
+        ? localStorage.getItem("hype_admin_token")
+        : null;
+    if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable && onProgress) {
+        onProgress(Math.round((e.loaded / e.total) * 100));
+      }
+    };
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve(xhr.responseText ? JSON.parse(xhr.responseText) : {});
+      } else {
+        reject(new Error("Upload failed"));
+      }
+    };
+    xhr.onerror = () => reject(new Error("Upload failed"));
+    xhr.send(fd);
+  });
 }
 
 export async function replaceVideo(videoId: string, file: File) {
