@@ -26,7 +26,7 @@ def _now():
 
 class Admin(Base):
     __tablename__ = "admins"
-    id = Column(UUID(as_uuid=False), primary_key=True, default=_uuid)
+    id = Column(String, primary_key=True, default=_uuid)
     email = Column(String, unique=True, nullable=False, index=True)
     password_hash = Column(String, nullable=False)
     created_at = Column(DateTime(timezone=True), default=_now)
@@ -34,7 +34,7 @@ class Admin(Base):
 
 class Project(Base):
     __tablename__ = "projects"
-    id = Column(UUID(as_uuid=False), primary_key=True, default=_uuid)
+    id = Column(String, primary_key=True, default=_uuid)
     slug = Column(String, unique=True, nullable=False, index=True)
     title = Column(String, nullable=False)
     client_name = Column(String, nullable=False, default="")
@@ -58,9 +58,9 @@ class Project(Base):
 
 class Video(Base):
     __tablename__ = "videos"
-    id = Column(UUID(as_uuid=False), primary_key=True, default=_uuid)
+    id = Column(String, primary_key=True, default=_uuid)
     project_id = Column(
-        UUID(as_uuid=False), ForeignKey("projects.id", ondelete="CASCADE"), index=True
+        String, ForeignKey("projects.id", ondelete="CASCADE"), index=True
     )
     title = Column(String, nullable=False)
     # storage keys / urls
