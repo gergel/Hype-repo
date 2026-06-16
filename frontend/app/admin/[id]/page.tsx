@@ -164,21 +164,21 @@ export default function AdminProjectPage() {
                 value={(form as never)[key]}
                 onChange={(v) => setForm((f) => ({ ...f, [key]: v }))}
               />
-              <button
-                type="button"
-                onClick={() => coverRef.current?.click()}
-                className="mt-1 text-xs text-ember hover:underline"
-              >
-                Vagy tölts fel képet
-              </button>
-              <input
-                ref={coverRef}
-                type="file"
-                accept="image/*"
-                hidden
-                onChange={onCoverUpload}
-              />
             ))}
+            <button
+              type="button"
+              onClick={() => coverRef.current?.click()}
+              className="text-xs text-ember hover:underline"
+            >
+              Vagy tölts fel képet
+            </button>
+            <input
+              ref={coverRef}
+              type="file"
+              accept="image/*"
+              hidden
+              onChange={onCoverUpload}
+            />
             <div>
               <label className="font-mono text-[11px] uppercase tracking-eyebrow text-mist">
                 Description
