@@ -2,7 +2,7 @@
 import { motion } from "framer-motion";
 import { Play, Download } from "lucide-react";
 import { Video } from "@/lib/api";
-import { formatDuration } from "@/lib/utils";
+import { formatDuration, forceDownload } from "@/lib/utils";
 
 export function VideoCard({
   video,
@@ -58,15 +58,16 @@ export function VideoCard({
             {video.resolution_label}
           </p>
         </div>
-        <a
-          href={video.mp4_url}
-          download
-          onClick={(e) => e.stopPropagation()}
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            forceDownload(video.mp4_url, `${video.title}.mp4`);
+          }}
           aria-label={`Download ${video.title}`}
           className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-ink-line text-mist transition hover:border-bone/50 hover:text-bone"
         >
           <Download className="h-4 w-4" />
-        </a>
+        </button>
       </div>
     </motion.article>
   );
