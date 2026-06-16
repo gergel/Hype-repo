@@ -44,6 +44,28 @@ def resolution_label(height: int) -> str:
         return "480p"
     return f"{height}p" if height else "SD"
 
+def aspect_ratio_label(width: int, height: int) -> str:
+    if not width or not height:
+        return ""
+    from math import gcd
+    ratio = width / height
+    # Gyakori arányok felismerése kis tűréssel
+    common = {
+        16 / 9: "16:9",
+        9 / 16: "9:16",
+        1 / 1: "1:1",
+        4 / 3: "4:3",
+        3 / 4: "3:4",
+        21 / 9: "21:9",
+        4 / 5: "4:5",
+    }
+    for value, label in common.items():
+        if abs(ratio - value) < 0.04:
+            return label
+    # Ha nem gyakori, számoljuk ki a legegyszerűbb formát
+    d = gcd(width, height)
+    return f"{width // d}:{height // d}"
+
 
 def make_thumbnail(src: str, out_jpg: str, at_second: float = 1.0) -> None:
     _run([
