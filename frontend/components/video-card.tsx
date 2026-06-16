@@ -56,6 +56,7 @@ export function VideoCard({
           <h3 className="truncate font-display text-lg text-bone">{video.title}</h3>
           <p className="mt-0.5 font-mono text-[11px] uppercase tracking-eyebrow text-mist">
             {video.resolution_label}
+            {video.aspect_ratio_label ? ` · ${video.aspect_ratio_label}` : ""}
           </p>
         </div>
         <button
