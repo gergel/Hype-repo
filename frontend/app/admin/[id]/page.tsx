@@ -217,7 +217,7 @@ export default function AdminProjectPage() {
             <div>
               <div className="flex items-center justify-between">
                 <label className="font-mono text-[11px] uppercase tracking-eyebrow text-mist">
-                  Password {data.has_password ? "(beállítva)" : "(nincs)"}
+                  Password {data.has_password ? "(set)" : "(None)"}
                 </label>
                 {data.has_password && (
                   <button
@@ -232,7 +232,7 @@ export default function AdminProjectPage() {
               <input
                 type="password"
                 value={form.password}
-                placeholder={data.has_password ? "Új jelszó (üresen hagyva marad)" : "Jelszó beállítása"}
+                placeholder={data.has_password ? "New password (keep it empty)" : "Set password"}
                 onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
                 className="mt-1.5 w-full rounded-full border border-ink-line bg-ink px-4 py-2.5 text-bone outline-none focus:border-ember/60"
               />
