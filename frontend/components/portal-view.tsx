@@ -6,6 +6,7 @@ import { PublicProject, Video } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { VideoCard } from "@/components/video-card";
 import { VideoPlayer } from "@/components/video-player";
+import { forceDownload } from "@/lib/utils";
 
 export function PortalView({ project }: { project: PublicProject }) {
   const [active, setActive] = useState<Video | null>(null);
@@ -114,13 +115,8 @@ function DownloadAllButton({ videos }: { videos: Video[] }) {
     videos.forEach((v, i) => {
       if (!v.mp4_url) return;
       setTimeout(() => {
-        const a = document.createElement("a");
-        a.href = v.mp4_url;
-        a.download = `${v.title}.mp4`;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-      }, i * 600);
+        forceDownload(v.mp4_url, `${v.title}.mp4`);
+      }, i * 800);
     });
   }
   return (
