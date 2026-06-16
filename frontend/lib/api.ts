@@ -67,7 +67,7 @@ export async function getByShare(token: string) {
 }
 
 // ---- Auth + admin (token in localStorage) ----
-function authHeaders() {
+function authHeaders(): Record<string, string> {
   const t = typeof window !== "undefined" ? localStorage.getItem("hype_admin_token") : null;
   return t ? { Authorization: `Bearer ${t}` } : {};
 }
