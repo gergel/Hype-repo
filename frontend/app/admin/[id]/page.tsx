@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState, useRef } from "react";
 import { useParams } from "next/navigation";
+import { uploadCover } from "@/lib/api";
 import {
   GripVertical,
   Upload,
@@ -43,6 +44,7 @@ export default function AdminProjectPage() {
   const [uploads, setUploads] = useState<{ name: string; percent: number }[]>([]);
   const replaceRef = useRef<HTMLInputElement>(null);
   const replaceId = useRef<string>("");
+  const coverRef = useRef<HTMLInputElement>(null);
   const dragId = useRef<string>("");
 
   async function refresh() {
@@ -101,6 +103,14 @@ export default function AdminProjectPage() {
     refresh();
   }
 
+  async function onCoverUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const { cover_image_url } = await uploadCover(id, file);
+    setForm((f) => ({ ...f, cover_image_url }));
+    refresh();
+  }
+
   async function onReplace(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (file && replaceId.current) {
@@ -151,6 +161,20 @@ export default function AdminProjectPage() {
                 label={label}
                 value={(form as never)[key]}
                 onChange={(v) => setForm((f) => ({ ...f, [key]: v }))}
+              />
+              <button
+                type="button"
+                onClick={() => coverRef.current?.click()}
+                className="mt-1 text-xs text-ember hover:underline"
+              >
+                Vagy tölts fel képet
+              </button>
+              <input
+                ref={coverRef}
+                type="file"
+                accept="image/*"
+                hidden
+                onChange={onCoverUpload}
               />
             ))}
             <div>
