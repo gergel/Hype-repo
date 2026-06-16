@@ -27,6 +27,23 @@ export async function forceDownload(url: string, filename: string) {
   try {
     const res = await fetch(url, { mode: "cors" });
     const blob = await res.blob();
+
+    // Mobilon: próbáljuk a natív megosztó-lapot (innen lehet galériába menteni)
+    const file = new File([blob], filename, { type: blob.type || "video/mp4" });
+    const nav = navigator as Navigator & {
+      canShare?: (data?: { files?: File[] }) => boolean;
+      share?: (data: { files?: File[]; title?: string }) => Promise<void>;
+    };
+    if (nav.canShare && nav.canShare({ files: [file] }) && nav.share) {
+      try {
+        await nav.share({ files: [file], title: filename });
+        return; // sikeres megosztás → kész
+      } catch {
+        // a felhasználó megszakította vagy nem ment → essünk vissza letöltésre
+      }
+    }
+
+    // Asztali (vagy ha a megosztás nem elérhető): sima letöltés
     const blobUrl = window.URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = blobUrl;
