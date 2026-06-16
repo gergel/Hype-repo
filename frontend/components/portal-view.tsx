@@ -19,11 +19,11 @@ export function PortalView({ project }: { project: PublicProject }) {
     <main className="relative">
       {/* ---------- Hero ---------- */}
       <section className="relative flex min-h-[88vh] items-end overflow-hidden">
-        {project.cover_image_url ? (
+        {coverImage ? (
           <div className="absolute inset-0">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src={project.cover_image_url}
+              src={coverImage}
               alt=""
               className="h-full w-full origin-center object-cover animate-drift"
             />
