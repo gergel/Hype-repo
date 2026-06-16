@@ -33,7 +33,7 @@ export interface ProjectSummary {
   has_password: boolean;
 }
 
-const BASE = "/api";
+const BASE = `${process.env.NEXT_PUBLIC_API_URL || ""}/api`;
 
 async function req<T>(path: string, opts: RequestInit = {}): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
