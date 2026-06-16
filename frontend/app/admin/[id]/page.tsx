@@ -156,15 +156,6 @@ export default function AdminProjectPage() {
               ["title", "Project title"],
               ["client_name", "Client name"],
               ["cover_image_url", "Cover image URL"],
-              ["slug", "Portal slug"],
-            ].map(([key, label]) => (
-              <Field
-                key={key}
-                label={label}
-                value={(form as never)[key]}
-                onChange={(v) => setForm((f) => ({ ...f, [key]: v }))}
-              />
-            ))}
             <button
               type="button"
               onClick={() => coverRef.current?.click()}
@@ -179,6 +170,16 @@ export default function AdminProjectPage() {
               hidden
               onChange={onCoverUpload}
             />
+              ["slug", "Portal slug"],
+            ].map(([key, label]) => (
+              <Field
+                key={key}
+                label={label}
+                value={(form as never)[key]}
+                onChange={(v) => setForm((f) => ({ ...f, [key]: v }))}
+              />
+            ))}
+            
             <div>
               <label className="font-mono text-[11px] uppercase tracking-eyebrow text-mist">
                 Description
