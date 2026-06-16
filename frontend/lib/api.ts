@@ -8,6 +8,7 @@ export interface Video {
   width: number;
   height: number;
   resolution_label: string;
+  aspect_ratio_label: string;
   size_bytes: number;
   status: string;
   sort_order: number;
