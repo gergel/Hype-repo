@@ -102,6 +102,13 @@ export async function updateProject(id: string, data: Record<string, unknown>) {
   });
 }
 
+export async function deleteProject(id: string) {
+  return req(`/admin/projects/${id}`, {
+    method: "DELETE",
+    headers: authHeaders(),
+  });
+}
+
 export async function getProjectDetail(id: string) {
   return req<PublicProject & { share_token: string; has_password: boolean }>(
     `/admin/projects/${id}`,
