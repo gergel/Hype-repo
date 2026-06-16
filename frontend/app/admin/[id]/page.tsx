@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState, useRef } from "react";
 import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { uploadCover } from "@/lib/api";
 import {
   GripVertical,
@@ -17,6 +18,7 @@ import {
   replaceVideo,
   deleteVideo,
   reorderVideos,
+  deleteProject,
   regenShare,
   Video,
 } from "@/lib/api";
@@ -25,6 +27,7 @@ import { formatDuration, formatBytes } from "@/lib/utils";
 
 export default function AdminProjectPage() {
   const id = useParams().id as string;
+  const router = useRouter();
   const [data, setData] = useState<Awaited<ReturnType<typeof getProjectDetail>> | null>(
     null
   );
@@ -46,6 +49,7 @@ export default function AdminProjectPage() {
   const replaceId = useRef<string>("");
   const coverRef = useRef<HTMLInputElement>(null);
   const dragId = useRef<string>("");
+  
 
   async function refresh() {
     const d = await getProjectDetail(id);
@@ -142,6 +146,15 @@ export default function AdminProjectPage() {
     const { url } = await regenShare(id);
     setShareUrl(url);
     navigator.clipboard?.writeText(url).catch(() => {});
+  }
+
+  async function onDeleteProject() {
+    const ok = window.confirm(
+      "Biztosan törlöd ezt a projektet az összes videójával együtt? Ez nem vonható vissza."
+    );
+    if (!ok) return;
+    await deleteProject(id);
+    router.push("/admin");
   }
 
   if (!data) return null;
@@ -253,6 +266,17 @@ export default function AdminProjectPage() {
               <Link2 className="h-4 w-4" />
               Share link
             </Button>
+            <Button variant="ghost" onClick={makeShare}>
+              <Link2 className="h-4 w-4" />
+              Share link
+            </Button>
+            <button
+              onClick={onDeleteProject}
+              className="ml-auto flex items-center gap-2 rounded-full border border-ember/40 px-4 py-2 text-sm text-ember transition hover:bg-ember/10"
+            >
+              <Trash2 className="h-4 w-4" />
+              Projekt törlése
+            </button>
           </div>
           {shareUrl && (
             <p className="mt-3 break-all rounded-xl border border-ink-line bg-ink px-3 py-2 font-mono text-xs text-mist">
