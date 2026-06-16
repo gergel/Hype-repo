@@ -156,7 +156,7 @@ export default function AdminProjectPage() {
               ["title", "Project title"],
               ["client_name", "Client name"],
               ["cover_image_url", "Cover image URL"],
-            <button
+      <button
               type="button"
               onClick={() => coverRef.current?.click()}
               className="text-xs text-ember hover:underline"
