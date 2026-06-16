@@ -138,5 +138,6 @@ def process_video(src_path: str, key_prefix: str) -> dict:
         "width": meta["width"],
         "height": meta["height"],
         "resolution_label": resolution_label(meta["height"]),
+        "aspect_ratio_label": aspect_ratio_label(meta["width"], meta["height"]),
         "size_bytes": size_bytes,
     }
