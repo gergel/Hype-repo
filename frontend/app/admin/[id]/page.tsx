@@ -103,6 +103,7 @@ export default function AdminProjectPage() {
     refresh();
   }
 
+
   async function onCoverUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -110,6 +111,7 @@ export default function AdminProjectPage() {
     setForm((f) => ({ ...f, cover_image_url }));
     refresh();
   }
+  
 
   async function onReplace(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
