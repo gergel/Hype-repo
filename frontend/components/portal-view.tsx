@@ -10,6 +10,10 @@ import { forceDownload } from "@/lib/utils";
 
 export function PortalView({ project }: { project: PublicProject }) {
   const [active, setActive] = useState<Video | null>(null);
+  const coverImage =
+    project.cover_image_url ||
+    project.videos.find((v) => v.thumbnail_url)?.thumbnail_url ||
+    "";
 
   return (
     <main className="relative">
