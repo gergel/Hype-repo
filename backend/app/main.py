@@ -25,8 +25,10 @@ def _seed_admin():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    Base.metadata.create_all(bind=engine)
-    _seed_admin()
+    try:
+        _seed_admin()
+    except Exception as e:
+        print(f"[startup] admin seed skipped: {e}", flush=True)
     yield
 
 
