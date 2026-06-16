@@ -1,6 +1,5 @@
 "use client";
 import { useEffect, useState, useRef } from "react";
-import { useParams } from "next/navigation";
 import { useParams, useRouter } from "next/navigation";
 import { uploadCover } from "@/lib/api";
 import {
@@ -194,7 +193,7 @@ export default function AdminProjectPage() {
                   onClick={() => coverRef.current?.click()}
                   className="text-xs text-ember hover:underline"
                 >
-                  Feltöltés
+                  Upload
                 </button>
               </div>
               {form.cover_image_url && (
@@ -238,7 +237,7 @@ export default function AdminProjectPage() {
                     onClick={clearPassword}
                     className="text-xs text-ember hover:underline"
                   >
-                    Jelszó törlése
+                    Reset password
                   </button>
                 )}
               </div>
@@ -261,10 +260,6 @@ export default function AdminProjectPage() {
               <a href={portalUrl} target="_blank">
                 View portal
               </a>
-            </Button>
-            <Button variant="ghost" onClick={makeShare}>
-              <Link2 className="h-4 w-4" />
-              Share link
             </Button>
             <Button variant="ghost" onClick={makeShare}>
               <Link2 className="h-4 w-4" />
