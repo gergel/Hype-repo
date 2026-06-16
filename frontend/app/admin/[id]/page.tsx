@@ -82,6 +82,12 @@ export default function AdminProjectPage() {
     refresh();
   }
 
+  async function clearPassword() {
+    await updateProject(id, { password: "" });
+    setForm((f) => ({ ...f, password: "" }));
+    refresh();
+  }
+
   async function onUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files || []);
     for (const file of files) {
@@ -208,13 +214,29 @@ export default function AdminProjectPage() {
                 className="mt-1.5 w-full rounded-2xl border border-ink-line bg-ink px-4 py-3 text-bone outline-none focus:border-ember/60"
               />
             </div>
-            <Field
-              label={`Password ${data.has_password ? "(set — leave blank to keep)" : "(none)"}`}
-              type="password"
-              value={form.password}
-              placeholder="Set or change password"
-              onChange={(v) => setForm((f) => ({ ...f, password: v }))}
-            />
+            <div>
+              <div className="flex items-center justify-between">
+                <label className="font-mono text-[11px] uppercase tracking-eyebrow text-mist">
+                  Password {data.has_password ? "(beállítva)" : "(nincs)"}
+                </label>
+                {data.has_password && (
+                  <button
+                    type="button"
+                    onClick={clearPassword}
+                    className="text-xs text-ember hover:underline"
+                  >
+                    Jelszó törlése
+                  </button>
+                )}
+              </div>
+              <input
+                type="password"
+                value={form.password}
+                placeholder={data.has_password ? "Új jelszó (üresen hagyva marad)" : "Jelszó beállítása"}
+                onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
+                className="mt-1.5 w-full rounded-full border border-ink-line bg-ink px-4 py-2.5 text-bone outline-none focus:border-ember/60"
+              />
+            </div>
           </div>
 
           <div className="mt-5 flex flex-wrap items-center gap-3">
