@@ -155,21 +155,6 @@ export default function AdminProjectPage() {
             {[
               ["title", "Project title"],
               ["client_name", "Client name"],
-              ["cover_image_url", "Cover image URL"],
-      <button
-              type="button"
-              onClick={() => coverRef.current?.click()}
-              className="text-xs text-ember hover:underline"
-            >
-              Vagy tölts fel képet
-            </button>
-            <input
-              ref={coverRef}
-              type="file"
-              accept="image/*"
-              hidden
-              onChange={onCoverUpload}
-            />
               ["slug", "Portal slug"],
             ].map(([key, label]) => (
               <Field
@@ -179,6 +164,38 @@ export default function AdminProjectPage() {
                 onChange={(v) => setForm((f) => ({ ...f, [key]: v }))}
               />
             ))}
+
+            <div>
+              <div className="flex items-center justify-between">
+                <label className="font-mono text-[11px] uppercase tracking-eyebrow text-mist">
+                  Cover image
+                </label>
+                <button
+                  type="button"
+                  onClick={() => coverRef.current?.click()}
+                  className="text-xs text-ember hover:underline"
+                >
+                  Feltöltés
+                </button>
+              </div>
+              {form.cover_image_url && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={form.cover_image_url}
+                  alt="Cover"
+                  className="mt-2 h-32 w-full rounded-2xl border border-ink-line object-cover"
+                />
+              )}
+              <input
+                ref={coverRef}
+                type="file"
+                accept="image/*"
+                hidden
+                onChange={onCoverUpload}
+              />
+            </div>
+
+            <div>
             
             <div>
               <label className="font-mono text-[11px] uppercase tracking-eyebrow text-mist">
