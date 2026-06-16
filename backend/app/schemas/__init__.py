@@ -25,6 +25,7 @@ class VideoOut(BaseModel):
     width: int
     height: int
     resolution_label: str
+    aspect_ratio_label: str = ""
     size_bytes: int
     status: str
     sort_order: int
