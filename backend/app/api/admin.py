@@ -111,6 +111,32 @@ def delete_project(
     return {"ok": True}
 
 
+@router.post("/projects/{project_id}/cover")
+async def upload_cover(
+    project_id: str,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    _: str = Depends(require_admin),
+):
+    project = db.query(Project).get(project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    ext = os.path.splitext(file.filename or "cover.jpg")[1] or ".jpg"
+    key = f"covers/{project_id}/cover{ext}"
+    content_type = file.content_type or "image/jpeg"
+
+    with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as tmp:
+        tmp.write(await file.read())
+        tmp_path = tmp.name
+    url = storage.upload_file(tmp_path, key, content_type)
+    os.unlink(tmp_path)
+
+    project.cover_image_url = url
+    db.commit()
+    return {"cover_image_url": url}
+
+
 @router.post("/projects/{project_id}/share", response_model=ShareLink)
 def regenerate_share(
     project_id: str, db: Session = Depends(get_db), _: str = Depends(require_admin)
