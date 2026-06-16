@@ -40,6 +40,7 @@ export default function AdminProjectPage() {
   const [shareUrl, setShareUrl] = useState("");
   const [saved, setSaved] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const [uploads, setUploads] = useState<{ name: string; percent: number }[]>([]);
   const replaceRef = useRef<HTMLInputElement>(null);
   const replaceId = useRef<string>("");
   const dragId = useRef<string>("");
@@ -82,7 +83,20 @@ export default function AdminProjectPage() {
   async function onUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files || []);
     for (const file of files) {
-      await uploadVideo(id, file, file.name.replace(/\.[^.]+$/, ""));
+      const name = file.name.replace(/\.[^.]+$/, "");
+      setUploads((u) => [...u, { name, percent: 0 }]);
+      try {
+        await uploadVideo(id, file, name, (percent) => {
+          setUploads((u) =>
+            u.map((item) => (item.name === name ? { ...item, percent } : item))
+          );
+        });
+      } finally {
+        // feltöltés kész → vegyük le a listáról kis késleltetéssel
+        setTimeout(() => {
+          setUploads((u) => u.filter((item) => item.name !== name));
+        }, 1500);
+      }
     }
     refresh();
   }
@@ -201,6 +215,30 @@ export default function AdminProjectPage() {
           </div>
 
           <p className="mt-2 text-xs text-mist">Drag the handle to reorder.</p>
+
+          {uploads.length > 0 && (
+            <div className="mt-4 space-y-2">
+              {uploads.map((u) => (
+                <div
+                  key={u.name}
+                  className="rounded-xl border border-ink-line bg-ink px-3 py-2.5"
+                >
+                  <div className="mb-1.5 flex items-center justify-between">
+                    <span className="truncate text-sm text-bone">{u.name}</span>
+                    <span className="font-mono text-[11px] text-mist">
+                      {u.percent < 100 ? `${u.percent}%` : "Feldolgozás…"}
+                    </span>
+                  </div>
+                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-ink-line">
+                    <div
+                      className="h-full rounded-full bg-ember transition-all duration-200"
+                      style={{ width: `${u.percent}%` }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
 
           <ul className="mt-4 space-y-2">
             {videos.map((v) => (
