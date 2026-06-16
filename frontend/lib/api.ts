@@ -161,6 +161,19 @@ export function uploadVideo(
   });
 }
 
+
+export async function uploadCover(projectId: string, file: File) {
+  const fd = new FormData();
+  fd.append("file", file);
+  const res = await fetch(`${BASE}/admin/projects/${projectId}/cover`, {
+    method: "POST",
+    headers: authHeaders(),
+    body: fd,
+  });
+  if (!res.ok) throw new Error("Cover upload failed");
+  return res.json();
+}
+
 export async function replaceVideo(videoId: string, file: File) {
   const fd = new FormData();
   fd.append("file", file);
