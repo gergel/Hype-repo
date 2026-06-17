@@ -121,6 +121,12 @@ export default function AdminProjectPage() {
     refresh();
   }
 
+  async function onDeleteCover() {
+    await deleteCover(id);
+    setForm((f) => ({ ...f, cover_image_url: "" }));
+    refresh();
+  }
+
   async function onReplace(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (file && replaceId.current) {
@@ -188,13 +194,24 @@ export default function AdminProjectPage() {
                 <label className="font-mono text-[11px] uppercase tracking-eyebrow text-mist">
                   Cover image
                 </label>
-                <button
-                  type="button"
-                  onClick={() => coverRef.current?.click()}
-                  className="text-xs text-ember hover:underline"
-                >
-                  Upload
-                </button>
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => coverRef.current?.click()}
+                    className="text-xs text-ember hover:underline"
+                  >
+                    Upload
+                  </button>
+                  {form.cover_image_url && (
+                    <button
+                      type="button"
+                      onClick={onDeleteCover}
+                      className="text-xs text-mist hover:text-ember hover:underline"
+                    >
+                      Remove
+                    </button>
+                  )}
+                </div>
               </div>
               {form.cover_image_url && (
                 // eslint-disable-next-line @next/next/no-img-element
