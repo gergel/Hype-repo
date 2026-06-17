@@ -271,6 +271,13 @@ export async function uploadCover(projectId: string, file: File) {
   return res.json();
 }
 
+export async function deleteCover(projectId: string) {
+  return req<{ cover_image_url: string }>(`/admin/projects/${projectId}/cover`, {
+    method: "DELETE",
+    headers: authHeaders(),
+  });
+}
+
 export async function replaceVideo(videoId: string, file: File) {
   const fd = new FormData();
   fd.append("file", file);
