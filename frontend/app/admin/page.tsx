@@ -109,6 +109,7 @@ function Dashboard() {
         p.title.toLowerCase().includes(q) ||
         p.client_name.toLowerCase().includes(q) ||
         (p.project_date || "").toLowerCase().includes(q)
+      );
     })
     .sort((a, b) => {
       if (sortBy === "name") return a.title.localeCompare(b.title);
@@ -116,7 +117,7 @@ function Dashboard() {
       const db = b.project_date || "";
       if (sortBy === "date_asc") return da.localeCompare(db);
       return db.localeCompare(da); // date_desc
-    })
+    });
 
   return (
     <main className="mx-auto max-w-5xl px-6 py-16">
