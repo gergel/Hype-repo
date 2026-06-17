@@ -109,7 +109,7 @@ function Dashboard() {
         p.title.toLowerCase().includes(q) ||
         p.client_name.toLowerCase().includes(q) ||
         (p.project_date || "").toLowerCase().includes(q)
-    });
+    })
     .sort((a, b) => {
       if (sortBy === "name") return a.title.localeCompare(b.title);
       const da = a.project_date || "";
