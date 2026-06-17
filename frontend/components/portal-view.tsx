@@ -10,10 +10,7 @@ import { forceDownload } from "@/lib/utils";
 
 export function PortalView({ project }: { project: PublicProject }) {
   const [active, setActive] = useState<Video | null>(null);
-  const coverImage =
-    project.cover_image_url ||
-    project.videos.find((v) => v.thumbnail_url)?.thumbnail_url ||
-    "";
+  const hasCustomCover = !!project.cover_image_url;
 
   return (
     <main className="relative">
@@ -21,17 +18,34 @@ export function PortalView({ project }: { project: PublicProject }) {
       <section className="relative flex min-h-[88vh] items-end overflow-hidden">
         {coverImage ? (
           <div className="absolute inset-0">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
+          {hasCustomCover ? (
+            // eslint-disable-next-line @next/next/no-img-element
             <img
-              src={coverImage}
+              src={project.cover_image_url}
               alt=""
               className="h-full w-full origin-center object-cover animate-drift"
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-ink via-ink/40 to-ink/20" />
-            <div className="absolute inset-0 bg-gradient-to-r from-ink/60 to-transparent" />
-          </div>
-        ) : (
-          <div className="absolute inset-0 bg-ink-soft" />
+          ) : (
+            <>
+              {/* Mobil alapkép */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/default-cover-mobile.PNG"
+                alt=""
+                className="h-full w-full origin-center object-cover animate-drift sm:hidden"
+              />
+              {/* Gépi alapkép */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/default-cover-desktop.png"
+                alt=""
+                className="hidden h-full w-full origin-center object-cover animate-drift sm:block"
+              />
+            </>
+          )}
+          <div className="absolute inset-0 bg-gradient-to-t from-ink via-ink/40 to-ink/20" />
+          <div className="absolute inset-0 bg-gradient-to-r from-ink/60 to-transparent" />
+        </div>
         )}
 
         <div className="relative mx-auto w-full max-w-6xl px-6 pb-16 sm:pb-24">
