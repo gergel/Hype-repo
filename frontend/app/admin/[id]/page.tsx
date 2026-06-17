@@ -34,6 +34,7 @@ export default function AdminProjectPage() {
   const [form, setForm] = useState({
     title: "",
     client_name: "",
+    project_date: "",
     description: "",
     cover_image_url: "",
     slug: "",
@@ -48,7 +49,6 @@ export default function AdminProjectPage() {
   const replaceId = useRef<string>("");
   const coverRef = useRef<HTMLInputElement>(null);
   const dragId = useRef<string>("");
-  
 
   async function refresh() {
     const d = await getProjectDetail(id);
@@ -58,6 +58,7 @@ export default function AdminProjectPage() {
       ...f,
       title: d.title,
       client_name: d.client_name,
+      project_date: (d as never)["project_date"] || "",
       description: d.description,
       cover_image_url: d.cover_image_url,
       slug: d.slug,
@@ -112,7 +113,6 @@ export default function AdminProjectPage() {
     refresh();
   }
 
-
   async function onCoverUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -120,7 +120,6 @@ export default function AdminProjectPage() {
     setForm((f) => ({ ...f, cover_image_url }));
     refresh();
   }
-  
 
   async function onReplace(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -173,6 +172,7 @@ export default function AdminProjectPage() {
             {[
               ["title", "Project title"],
               ["client_name", "Client name"],
+              ["project_date", "Date (pl. 2026-06-17)"],
               ["slug", "Portal slug"],
             ].map(([key, label]) => (
               <Field
@@ -213,8 +213,6 @@ export default function AdminProjectPage() {
               />
             </div>
 
-  
-            
             <div>
               <label className="font-mono text-[11px] uppercase tracking-eyebrow text-mist">
                 Description
