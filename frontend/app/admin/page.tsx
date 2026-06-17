@@ -188,7 +188,7 @@ function Dashboard() {
         )}
         {visibleProjects.map((p) => (
           
-             <akey={p.id}
+             <a key={p.id}
             href={`/admin/${p.id}`}
             className="flex items-center gap-4 bg-ink-card px-5 py-4 transition hover:bg-white/[0.03]"
           >
