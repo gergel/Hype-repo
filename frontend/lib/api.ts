@@ -84,6 +84,11 @@ export async function getByShare(token: string) {
   return req<{ locked: boolean; project: PublicProject }>(`/public/share/${token}`);
 }
 
+export async function getVideoDownloadUrl(videoId: string): Promise<string> {
+  const data = await req<{ url: string }>(`/public/videos/${videoId}/download`);
+  return data.url;
+}
+
 // ---- Auth + admin (token in localStorage) ----
 function authHeaders(): Record<string, string> {
   const t = typeof window !== "undefined" ? localStorage.getItem("hype_admin_token") : null;
