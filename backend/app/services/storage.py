@@ -52,6 +52,54 @@ def presigned_put(key: str, content_type: str, expires: int = 3600) -> str:
         ExpiresIn=expires,
     )
 
+def create_multipart(key: str, content_type: str) -> str:
+    """Elindít egy multipart feltöltést, visszaadja az upload_id-t."""
+    client = _client()
+    resp = client.create_multipart_upload(
+        Bucket=settings.R2_BUCKET,
+        Key=key,
+        ContentType=content_type,
+    )
+    return resp["UploadId"]
+
+
+def presigned_part(key: str, upload_id: str, part_number: int, expires: int = 3600) -> str:
+    """Aláírt URL egy darab (part) feltöltéséhez."""
+    client = _client()
+    return client.generate_presigned_url(
+        "upload_part",
+        Params={
+            "Bucket": settings.R2_BUCKET,
+            "Key": key,
+            "UploadId": upload_id,
+            "PartNumber": part_number,
+        },
+        ExpiresIn=expires,
+    )
+
+
+def complete_multipart(key: str, upload_id: str, parts: list) -> str:
+    """Lezárja a multipart feltöltést. parts: [{'PartNumber': 1, 'ETag': '...'}, ...]"""
+    client = _client()
+    ordered = sorted(parts, key=lambda p: p["PartNumber"])
+    client.complete_multipart_upload(
+        Bucket=settings.R2_BUCKET,
+        Key=key,
+        UploadId=upload_id,
+        MultipartUpload={"Parts": ordered},
+    )
+    return public_url(key)
+
+
+def abort_multipart(key: str, upload_id: str) -> None:
+    """Megszakít egy multipart feltöltést (takarítás)."""
+    client = _client()
+    try:
+        client.abort_multipart_upload(
+            Bucket=settings.R2_BUCKET, Key=key, UploadId=upload_id
+        )
+    except Exception:
+        pass
 
 def public_url(key: str) -> str:
     base = settings.R2_PUBLIC_URL.rstrip("/")
