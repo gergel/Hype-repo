@@ -23,6 +23,7 @@ export function formatBytes(bytes: number): string {
   }
   return `${n.toFixed(n < 10 ? 1 : 0)} ${units[i]}`;
 }
+
 export async function forceDownload(url: string, filename: string) {
   const SHARE_LIMIT = 150 * 1024 * 1024; // 150 MB alatt próbáljuk a mobil megosztást
 
@@ -70,19 +71,4 @@ export async function forceDownload(url: string, filename: string) {
   document.body.appendChild(a);
   a.click();
   a.remove();
-}
-
-    // Asztali (vagy ha a megosztás nem elérhető): sima letöltés
-    const blobUrl = window.URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = blobUrl;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    window.URL.revokeObjectURL(blobUrl);
-  } catch {
-    // ha valami nem megy, essünk vissza az új lapon megnyitásra
-    window.open(url, "_blank");
-  }
 }
