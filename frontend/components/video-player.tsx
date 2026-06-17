@@ -17,21 +17,32 @@ export function VideoPlayer({
 
   useEffect(() => {
     const el = ref.current;
-    if (!el || !video.hls_url) return;
+    if (!el) return;
     let hls: Hls | null = null;
 
-    if (el.canPlayType("application/vnd.apple.mpegurl")) {
-      // Safari / iOS native HLS
+    const hasHls = !!video.hls_url;
+
+    if (hasHls && el.canPlayType("application/vnd.apple.mpegurl")) {
+      // Safari / iOS natív HLS
       el.src = video.hls_url;
-    } else if (Hls.isSupported()) {
+    } else if (hasHls && Hls.isSupported()) {
+      // HLS.js a többi böngészőn
       hls = new Hls({ enableWorker: true });
       hls.loadSource(video.hls_url);
       hls.attachMedia(el);
       hls.on(Hls.Events.ERROR, (_e, data) => {
-        if (data.fatal) setError(true);
+        if (data.fatal && video.mp4_url) {
+          // ha a HLS elhasal, essünk vissza az mp4-re
+          hls?.destroy();
+          el.src = video.mp4_url;
+          el.play().catch(() => {});
+        } else if (data.fatal) {
+          setError(true);
+        }
       });
     } else if (video.mp4_url) {
-      el.src = video.mp4_url; // last-resort progressive fallback
+      // Nincs HLS (még készül) → közvetlen mp4 lejátszás
+      el.src = video.mp4_url;
     } else {
       setError(true);
     }
@@ -64,7 +75,6 @@ export function VideoPlayer({
         >
           <X className="h-5 w-5" />
         </button>
-
         <motion.div
           className="w-full max-w-6xl overflow-hidden rounded-2xl border border-ink-line bg-ink shadow-2xl"
           initial={{ scale: 0.96, opacity: 0 }}
