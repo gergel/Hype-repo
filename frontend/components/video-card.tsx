@@ -1,8 +1,8 @@
 "use client";
 import { motion } from "framer-motion";
 import { Play, Download } from "lucide-react";
-import { Video } from "@/lib/api";
-import { formatDuration, forceDownload } from "@/lib/utils";
+import { Video, getVideoDownloadUrl } from "@/lib/api";
+import { formatDuration } from "@/lib/utils";
 
 export function VideoCard({
   video,
@@ -57,10 +57,13 @@ export function VideoCard({
           </p>
         </div>
         <button
-          onClick={(e) => {
+          onClick={async (e) => {
             e.stopPropagation();
-            if (video.mp4_url) {
-              forceDownload(video.mp4_url, `${video.title}.mp4`);
+            try {
+              const url = await getVideoDownloadUrl(video.id);
+              window.location.href = url; // azonnal indul R2-ből, letöltésként
+            } catch {
+              // ha nem sikerül, nem csinálunk semmit
             }
           }}
           aria-label={`Download ${video.title}`}
