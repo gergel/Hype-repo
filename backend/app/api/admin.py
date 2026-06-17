@@ -164,6 +164,19 @@ async def upload_cover(
     return {"cover_image_url": url}
 
 
+@router.delete("/projects/{project_id}/cover")
+def delete_cover(
+    project_id: str, db: Session = Depends(get_db), _: str = Depends(require_admin)
+):
+    project = db.query(Project).get(project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    storage.delete_prefix(f"covers/{project_id}")
+    project.cover_image_url = ""
+    db.commit()
+    return {"cover_image_url": ""}
+
+
 @router.post("/projects/{project_id}/share", response_model=ShareLink)
 def regenerate_share(
     project_id: str, db: Session = Depends(get_db), _: str = Depends(require_admin)
