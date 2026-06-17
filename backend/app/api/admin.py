@@ -3,6 +3,7 @@ import tempfile
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from slugify import slugify
 
@@ -24,6 +25,32 @@ from app.services import storage, notion as notion_service
 from app.workers.tasks import process_video_task
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
+
+
+# ---------------- Multipart request models ----------------
+class MultipartInitIn(BaseModel):
+    filename: str
+    content_type: str = "video/mp4"
+    title: str | None = None
+
+
+class MultipartPartIn(BaseModel):
+    upload_id: str
+    key: str
+    part_number: int
+
+
+class MultipartCompleteIn(BaseModel):
+    upload_id: str
+    key: str
+    video_id: str
+    parts: list[dict]
+
+
+class MultipartAbortIn(BaseModel):
+    upload_id: str
+    key: str
+    video_id: str
 
 
 def _summary(p: Project) -> dict:
@@ -153,6 +180,77 @@ def regenerate_share(
 
 
 # ---------------- Videos ----------------
+@router.post("/projects/{project_id}/videos/multipart/init")
+def multipart_init(
+    project_id: str,
+    payload: MultipartInitIn,
+    db: Session = Depends(get_db),
+    _: str = Depends(require_admin),
+):
+    project = db.query(Project).get(project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    max_order = max([v.sort_order for v in project.videos], default=-1)
+    video = Video(
+        project_id=project_id,
+        title=payload.title or os.path.splitext(payload.filename)[0],
+        status="uploading",
+        sort_order=max_order + 1,
+    )
+    db.add(video)
+    db.commit()
+    db.refresh(video)
+
+    key = f"videos/{video.id}/upload.mp4"
+    upload_id = storage.create_multipart(key, payload.content_type)
+    video.source_key = key
+    db.commit()
+
+    return {"video_id": video.id, "upload_id": upload_id, "key": key}
+
+
+@router.post("/videos/multipart/sign-part")
+def multipart_sign_part(
+    payload: MultipartPartIn,
+    _: str = Depends(require_admin),
+):
+    url = storage.presigned_part(payload.key, payload.upload_id, payload.part_number)
+    return {"url": url}
+
+
+@router.post("/videos/multipart/complete")
+def multipart_complete(
+    payload: MultipartCompleteIn,
+    db: Session = Depends(get_db),
+    _: str = Depends(require_admin),
+):
+    video = db.query(Video).get(payload.video_id)
+    if not video:
+        raise HTTPException(status_code=404, detail="Video not found")
+
+    storage.complete_multipart(payload.key, payload.upload_id, payload.parts)
+    video.status = "processing"
+    db.commit()
+
+    process_video_task.delay(video.id, payload.key)
+    return VideoOut.model_validate(video)
+
+
+@router.post("/videos/multipart/abort")
+def multipart_abort(
+    payload: MultipartAbortIn,
+    db: Session = Depends(get_db),
+    _: str = Depends(require_admin),
+):
+    storage.abort_multipart(payload.key, payload.upload_id)
+    video = db.query(Video).get(payload.video_id)
+    if video:
+        db.delete(video)
+        db.commit()
+    return {"ok": True}
+
+
 @router.post("/projects/{project_id}/videos")
 async def upload_video(
     project_id: str,
