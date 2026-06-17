@@ -38,18 +38,15 @@ export function VideoCard({
           <div className="h-full w-full bg-ink-soft" />
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent opacity-80 transition-opacity group-hover:opacity-95" />
-
         {/* Play affordance */}
         <span className="absolute left-1/2 top-1/2 flex h-16 w-16 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-white/30 bg-black/30 backdrop-blur-md transition-all duration-500 group-hover:scale-110 group-hover:border-white/60">
           <Play className="ml-0.5 h-6 w-6 fill-bone text-bone" />
         </span>
-
         {/* Duration chip */}
         <span className="absolute bottom-3 right-3 rounded-full bg-black/60 px-2.5 py-1 font-mono text-xs text-bone backdrop-blur-sm">
           {formatDuration(video.duration_seconds)}
         </span>
       </button>
-
       {/* Meta */}
       <div className="flex items-center justify-between gap-3 px-5 py-4">
         <div className="min-w-0">
@@ -62,7 +59,9 @@ export function VideoCard({
         <button
           onClick={(e) => {
             e.stopPropagation();
-            forceDownload(video.mp4_url, `${video.title}.mp4`);
+            if (video.mp4_url) {
+              forceDownload(video.mp4_url, `${video.title}.mp4`);
+            }
           }}
           aria-label={`Download ${video.title}`}
           className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-ink-line text-mist transition hover:border-bone/50 hover:text-bone"
