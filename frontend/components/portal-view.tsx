@@ -16,8 +16,7 @@ export function PortalView({ project }: { project: PublicProject }) {
     <main className="relative">
       {/* ---------- Hero ---------- */}
       <section className="relative flex min-h-[88vh] items-end overflow-hidden">
-        {coverImage ? (
-          <div className="absolute inset-0">
+        <div className="absolute inset-0">
           {hasCustomCover ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -27,14 +26,12 @@ export function PortalView({ project }: { project: PublicProject }) {
             />
           ) : (
             <>
-              {/* Mobil alapkép */}
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src="/default-cover-mobile.PNG"
                 alt=""
                 className="h-full w-full origin-center object-cover animate-drift sm:hidden"
               />
-              {/* Gépi alapkép */}
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src="/default-cover-desktop.png"
@@ -46,7 +43,6 @@ export function PortalView({ project }: { project: PublicProject }) {
           <div className="absolute inset-0 bg-gradient-to-t from-ink via-ink/40 to-ink/20" />
           <div className="absolute inset-0 bg-gradient-to-r from-ink/60 to-transparent" />
         </div>
-        )}
 
         <div className="relative mx-auto w-full max-w-6xl px-6 pb-16 sm:pb-24">
           <motion.p
