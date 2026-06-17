@@ -38,11 +38,26 @@ export interface ProjectSummary {
 
 const BASE = `${process.env.NEXT_PUBLIC_API_URL || ""}/api`;
 
+// Lejárt vagy érvénytelen munkamenet kezelése:
+// töröljük a tokent, és ha admin oldalon vagyunk, visszadobunk a bejelentkezéshez.
+function handleUnauthorized() {
+  if (typeof window !== "undefined") {
+    localStorage.removeItem("hype_admin_token");
+    if (window.location.pathname.startsWith("/admin")) {
+      window.location.href = "/admin";
+    }
+  }
+}
+
 async function req<T>(path: string, opts: RequestInit = {}): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
     ...opts,
     headers: { "Content-Type": "application/json", ...(opts.headers || {}) },
   });
+  if (res.status === 401) {
+    handleUnauthorized();
+    throw new Error("A munkamenet lejárt. Jelentkezz be újra.");
+  }
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
     throw new Error(body.detail || `Request failed (${res.status})`);
@@ -159,6 +174,11 @@ export function uploadVideo(
       }
     };
     xhr.onload = () => {
+      if (xhr.status === 401) {
+        handleUnauthorized();
+        reject(new Error("A munkamenet lejárt. Jelentkezz be újra."));
+        return;
+      }
       if (xhr.status >= 200 && xhr.status < 300) {
         resolve(xhr.responseText ? JSON.parse(xhr.responseText) : {});
       } else {
@@ -170,7 +190,6 @@ export function uploadVideo(
   });
 }
 
-
 export async function uploadCover(projectId: string, file: File) {
   const fd = new FormData();
   fd.append("file", file);
@@ -179,6 +198,10 @@ export async function uploadCover(projectId: string, file: File) {
     headers: authHeaders(),
     body: fd,
   });
+  if (res.status === 401) {
+    handleUnauthorized();
+    throw new Error("A munkamenet lejárt. Jelentkezz be újra.");
+  }
   if (!res.ok) throw new Error("Cover upload failed");
   return res.json();
 }
@@ -191,6 +214,10 @@ export async function replaceVideo(videoId: string, file: File) {
     headers: authHeaders(),
     body: fd,
   });
+  if (res.status === 401) {
+    handleUnauthorized();
+    throw new Error("A munkamenet lejárt. Jelentkezz be újra.");
+  }
   if (!res.ok) throw new Error("Replace failed");
   return res.json();
 }
