@@ -73,6 +73,8 @@ function Dashboard() {
   const [creating, setCreating] = useState(false);
   const [title, setTitle] = useState("");
   const [client, setClient] = useState("");
+  const [search, setSearch] = useState("");
+  const [sortBy, setSortBy] = useState<"date_desc" | "date_asc" | "name">("date_desc");
 
   async function refresh() {
     setProjects(await listProjects());
@@ -99,6 +101,23 @@ function Dashboard() {
     setCreating(false);
     refresh();
   }
+
+  const visibleProjects = projects
+    .filter((p) => {
+      const q = search.toLowerCase();
+      return (
+        p.title.toLowerCase().includes(q) ||
+        p.client_name.toLowerCase().includes(q) ||
+        (p.project_date || "").toLowerCase().includes(q)
+      );
+    })
+    .sort((a, b) => {
+      if (sortBy === "name") return a.title.localeCompare(b.title);
+      const da = a.project_date || "";
+      const db = b.project_date || "";
+      if (sortBy === "date_asc") return da.localeCompare(db);
+      return db.localeCompare(da); // date_desc
+    });
 
   return (
     <main className="mx-auto max-w-5xl px-6 py-16">
@@ -141,14 +160,34 @@ function Dashboard() {
         </div>
       )}
 
-      <div className="mt-8 divide-y divide-ink-line overflow-hidden rounded-2xl border border-ink-line">
-        {projects.length === 0 && (
+      <div className="mt-6 flex flex-wrap items-center gap-3">
+        <input
+          placeholder="Keresés: projekt, ügyfél vagy dátum…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="flex-1 rounded-full border border-ink-line bg-ink px-4 py-2.5 text-bone outline-none focus:border-ember/60"
+        />
+        <select
+          value={sortBy}
+          onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
+          className="rounded-full border border-ink-line bg-ink px-4 py-2.5 text-bone outline-none focus:border-ember/60"
+        >
+          <option value="date_desc">Dátum (legújabb elöl)</option>
+          <option value="date_asc">Dátum (legrégebbi elöl)</option>
+          <option value="name">Név szerint (A–Z)</option>
+        </select>
+      </div>
+
+      <div className="mt-6 divide-y divide-ink-line overflow-hidden rounded-2xl border border-ink-line">
+        {visibleProjects.length === 0 && (
           <p className="p-8 text-center text-mist">
-            No projects yet. Create one or sync from Notion.
+            {projects.length === 0
+              ? "No projects yet. Create one or sync from Notion."
+              : "Nincs találat a keresésre."}
           </p>
         )}
-        {projects.map((p) => (
-          <a
+        {visibleProjects.map((p) => (
+          
             key={p.id}
             href={`/admin/${p.id}`}
             className="flex items-center gap-4 bg-ink-card px-5 py-4 transition hover:bg-white/[0.03]"
@@ -161,7 +200,10 @@ function Dashboard() {
             </div>
             <div className="min-w-0 flex-1">
               <h3 className="truncate font-display text-lg text-bone">{p.title}</h3>
-              <p className="truncate text-sm text-mist">{p.client_name}</p>
+              <p className="truncate text-sm text-mist">
+                {p.client_name}
+                {p.project_date ? ` · ${p.project_date}` : ""}
+              </p>
             </div>
             <span className="font-mono text-[11px] uppercase tracking-eyebrow text-mist">
               {p.status}
