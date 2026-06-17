@@ -42,6 +42,7 @@ export function PortalView({ project }: { project: PublicProject }) {
             className="font-mono text-xs uppercase tracking-eyebrow text-mist"
           >
             HYPE Production · {project.client_name || "Client"}
+            {project.project_date ? ` · ${project.project_date}` : ""}
           </motion.p>
 
           <motion.h1
