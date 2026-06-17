@@ -39,6 +39,7 @@ class Project(Base):
     title = Column(String, nullable=False)
     client_name = Column(String, nullable=False, default="")
     description = Column(Text, default="")
+    project_date = Column(String, default="")  # pl. "2026-06-17" vagy "2026. június"
     cover_image_url = Column(String, default="")
     status = Column(String, default="draft")  # draft | live | archived
     password_hash = Column(String, nullable=True)  # null = no password
