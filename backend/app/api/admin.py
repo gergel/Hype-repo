@@ -223,6 +223,18 @@ def multipart_init(
     return {"video_id": video.id, "upload_id": upload_id, "key": key}
 
 
+@router.get("/videos/{video_id}/download-url")
+def video_download_url(
+    video_id: str, db: Session = Depends(get_db), _: str = Depends(require_admin)
+):
+    video = db.query(Video).get(video_id)
+    if not video or not video.source_key:
+        raise HTTPException(status_code=404, detail="Not found")
+    safe = (video.title or "video").replace('"', "")
+    url = storage.presigned_download(video.source_key, f"{safe}.mp4")
+    return {"url": url}
+
+
 @router.post("/videos/multipart/sign-part")
 def multipart_sign_part(
     payload: MultipartPartIn,
