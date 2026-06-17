@@ -44,12 +44,12 @@ def resolution_label(height: int) -> str:
         return "480p"
     return f"{height}p" if height else "SD"
 
+
 def aspect_ratio_label(width: int, height: int) -> str:
     if not width or not height:
         return ""
     from math import gcd
     ratio = width / height
-    # Gyakori arányok felismerése kis tűréssel
     common = {
         16 / 9: "16:9",
         9 / 16: "9:16",
@@ -62,7 +62,6 @@ def aspect_ratio_label(width: int, height: int) -> str:
     for value, label in common.items():
         if abs(ratio - value) < 0.04:
             return label
-    # Ha nem gyakori, számoljuk ki a legegyszerűbb formát
     d = gcd(width, height)
     return f"{width // d}:{height // d}"
 
@@ -76,10 +75,9 @@ def make_thumbnail(src: str, out_jpg: str, at_second: float = 1.0) -> None:
 
 
 def make_hls(src: str, out_dir: str) -> str:
-    """Generate adaptive HLS. Returns master playlist filename."""
+    """Generate HLS. Returns master playlist filename."""
     os.makedirs(out_dir, exist_ok=True)
     master = os.path.join(out_dir, "master.m3u8")
-    # Single-rendition HLS (extend with -var_stream_map for ABR)
     _run([
         "ffmpeg", "-y", "-i", src,
         "-c:v", "libx264", "-c:a", "aac",
@@ -92,23 +90,37 @@ def make_hls(src: str, out_dir: str) -> str:
     return master
 
 
-def process_video(src_path: str, key_prefix: str) -> dict:
+def quick_metadata_and_thumb(remote_url: str, key_prefix: str) -> dict:
     """
-    Full pipeline: probe -> thumbnail -> HLS -> upload all to R2.
-    key_prefix e.g. 'videos/<video_id>'
-    Returns dict of urls + metadata.
+    GYORS lépés: az R2 URL-ről közvetlenül kiolvassa a metaadatot,
+    és kinyeri az első frame-et borítónak. Nem tölti le a teljes fájlt.
     """
-    meta = probe(src_path)
+    meta = probe(remote_url)
 
     with tempfile.TemporaryDirectory() as tmp:
-        # Thumbnail
         thumb = os.path.join(tmp, "thumb.jpg")
-        make_thumbnail(src_path, thumb, at_second=min(1.0, meta["duration"] / 2 or 1))
+        at = min(1.0, (meta["duration"] / 2) if meta["duration"] else 1.0)
+        make_thumbnail(remote_url, thumb, at_second=at)
         thumb_url = storage.upload_file(
             thumb, f"{key_prefix}/thumbnail.jpg", "image/jpeg"
         )
 
-        # HLS
+    return {
+        "thumbnail_url": thumb_url,
+        "duration_seconds": meta["duration"],
+        "width": meta["width"],
+        "height": meta["height"],
+        "resolution_label": resolution_label(meta["height"]),
+        "aspect_ratio_label": aspect_ratio_label(meta["width"], meta["height"]),
+    }
+
+
+def build_hls(src_path: str, key_prefix: str) -> str:
+    """
+    LASSÚ lépés: HLS generálás a letöltött fájlból, feltöltés R2-be.
+    Visszaadja a master playlist URL-jét. Hiba esetén dob.
+    """
+    with tempfile.TemporaryDirectory() as tmp:
         hls_dir = os.path.join(tmp, "hls")
         make_hls(src_path, hls_dir)
         hls_url = ""
@@ -122,22 +134,4 @@ def process_video(src_path: str, key_prefix: str) -> dict:
             url = storage.upload_file(fpath, f"{key_prefix}/hls/{fname}", ctype)
             if fname == "master.m3u8":
                 hls_url = url
-
-        # Original MP4 (for direct download)
-        mp4_url = storage.upload_file(
-            src_path, f"{key_prefix}/source.mp4", "video/mp4"
-        )
-        size_bytes = os.path.getsize(src_path)
-
-    return {
-        "thumbnail_url": thumb_url,
-        "hls_url": hls_url,
-        "mp4_url": mp4_url,
-        "source_key": f"{key_prefix}/source.mp4",
-        "duration_seconds": meta["duration"],
-        "width": meta["width"],
-        "height": meta["height"],
-        "resolution_label": resolution_label(meta["height"]),
-        "aspect_ratio_label": aspect_ratio_label(meta["width"], meta["height"]),
-        "size_bytes": size_bytes,
-    }
+    return hls_url
