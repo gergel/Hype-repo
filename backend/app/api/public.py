@@ -56,6 +56,15 @@ def get_public_project(
 
     return {"locked": False, "project": _serialize(project).model_dump()}
 
+@router.get("/videos/{video_id}/download")
+def public_video_download(video_id: str, db: Session = Depends(get_db)):
+    video = db.query(Video).get(video_id)
+    if not video or not video.source_key:
+        raise HTTPException(status_code=404, detail="Not found")
+    safe = (video.title or "video").replace('"', "").replace("\n", " ")
+    url = storage.presigned_download(video.source_key, f"{safe}.mp4")
+    return {"url": url}
+
 
 @router.post("/projects/{slug}/unlock")
 def unlock(slug: str, payload: ProjectUnlock, db: Session = Depends(get_db)):
