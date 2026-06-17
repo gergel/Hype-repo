@@ -65,6 +65,19 @@ def presigned_download(key: str, filename: str, expires: int = 3600) -> str:
         ExpiresIn=expires,
     )
 
+def presigned_download(key: str, filename: str, expires: int = 3600) -> str:
+    """Aláírt GET URL, ami letöltésként szolgálja ki a fájlt (Content-Disposition)."""
+    client = _client()
+    return client.generate_presigned_url(
+        "get_object",
+        Params={
+            "Bucket": settings.R2_BUCKET,
+            "Key": key,
+            "ResponseContentDisposition": f'attachment; filename="{filename}"',
+        },
+        ExpiresIn=expires,
+    )
+
 def create_multipart(key: str, content_type: str) -> str:
     """Elindít egy multipart feltöltést, visszaadja az upload_id-t."""
     client = _client()
