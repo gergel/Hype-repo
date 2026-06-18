@@ -1,6 +1,7 @@
 export interface Video {
   id: string;
   title: string;
+  folder_id: string | null;
   mp4_url: string;
   hls_url: string;
   thumbnail_url: string;
@@ -14,6 +15,12 @@ export interface Video {
   sort_order: number;
 }
 
+export interface Folder {
+  id: string;
+  name: string;
+  sort_order: number;
+}
+
 export interface PublicProject {
   id: string;
   slug: string;
@@ -23,6 +30,7 @@ export interface PublicProject {
   cover_image_url: string;
   project_date: string;
   videos: Video[];
+  folders: Folder[];
 }
 
 export interface ProjectSummary {
@@ -150,6 +158,39 @@ export async function reorderVideos(projectId: string, ordered_ids: string[]) {
     method: "POST",
     headers: authHeaders(),
     body: JSON.stringify({ ordered_ids }),
+  });
+}
+
+// ---- Folders ----
+export async function createFolder(projectId: string, name: string) {
+  return req<Folder>(`/admin/projects/${projectId}/folders`, {
+    method: "POST",
+    headers: authHeaders(),
+    body: JSON.stringify({ name }),
+  });
+}
+
+export async function updateFolder(folderId: string, data: Record<string, unknown>) {
+  return req<Folder>(`/admin/folders/${folderId}`, {
+    method: "PATCH",
+    headers: authHeaders(),
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteFolder(folderId: string) {
+  return req(`/admin/folders/${folderId}`, {
+    method: "DELETE",
+    headers: authHeaders(),
+  });
+}
+
+// Videó mappához rendelése (folderId = null → kivesz a mappából)
+export async function setVideoFolder(videoId: string, folderId: string | null) {
+  return req(`/admin/videos/${videoId}`, {
+    method: "PATCH",
+    headers: authHeaders(),
+    body: JSON.stringify({ folder_id: folderId }),
   });
 }
 
