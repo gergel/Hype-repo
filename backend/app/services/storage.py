@@ -1,6 +1,5 @@
 import boto3
 from botocore.config import Config
-
 from app.core.config import settings
 
 _session = boto3.session.Session()
@@ -52,18 +51,6 @@ def presigned_put(key: str, content_type: str, expires: int = 3600) -> str:
         ExpiresIn=expires,
     )
 
-def presigned_download(key: str, filename: str, expires: int = 3600) -> str:
-    """Aláírt GET URL, ami letöltésként szolgálja ki a fájlt (Content-Disposition)."""
-    client = _client()
-    return client.generate_presigned_url(
-        "get_object",
-        Params={
-            "Bucket": settings.R2_BUCKET,
-            "Key": key,
-            "ResponseContentDisposition": f'attachment; filename="{filename}"',
-        },
-        ExpiresIn=expires,
-    )
 
 def presigned_download(key: str, filename: str, expires: int = 3600) -> str:
     """Aláírt GET URL, ami letöltésként szolgálja ki a fájlt (Content-Disposition)."""
@@ -77,6 +64,7 @@ def presigned_download(key: str, filename: str, expires: int = 3600) -> str:
         },
         ExpiresIn=expires,
     )
+
 
 def create_multipart(key: str, content_type: str) -> str:
     """Elindít egy multipart feltöltést, visszaadja az upload_id-t."""
@@ -126,6 +114,7 @@ def abort_multipart(key: str, upload_id: str) -> None:
         )
     except Exception:
         pass
+
 
 def public_url(key: str) -> str:
     base = settings.R2_PUBLIC_URL.rstrip("/")
