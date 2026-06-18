@@ -59,6 +59,12 @@ class Project(Base):
         cascade="all, delete-orphan",
         order_by="Folder.sort_order",
     )
+    images = relationship(
+        "Image",
+        back_populates="project",
+        cascade="all, delete-orphan",
+        order_by="Image.sort_order",
+    )
 
 
 class Folder(Base):
@@ -105,3 +111,22 @@ class Video(Base):
     created_at = Column(DateTime(timezone=True), default=_now)
     project = relationship("Project", back_populates="videos")
     folder = relationship("Folder", back_populates="videos")
+
+class Image(Base):
+    __tablename__ = "images"
+    id = Column(String, primary_key=True, default=_uuid)
+    project_id = Column(
+        String, ForeignKey("projects.id", ondelete="CASCADE"), index=True
+    )
+    folder_id = Column(
+        String, ForeignKey("folders.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    title = Column(String, default="")
+    url = Column(String, default="")          # public URL in R2
+    key = Column(String, default="")          # storage key in R2
+    width = Column(Integer, default=0)
+    height = Column(Integer, default=0)
+    size_bytes = Column(Integer, default=0)
+    sort_order = Column(Integer, default=0)
+    created_at = Column(DateTime(timezone=True), default=_now)
+    project = relationship("Project", back_populates="images")
