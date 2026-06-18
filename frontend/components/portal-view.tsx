@@ -420,25 +420,37 @@ function ImageLightbox({
   );
 }
 
-function DownloadAllButton({ videos }: { videos: Video[] }) {
+function DownloadAllButton({
+  videos,
+  images,
+}: {
+  videos: Video[];
+  images: ImageType[];
+}) {
   const [busy, setBusy] = useState(false);
 
   async function downloadAll() {
     if (busy) return;
     setBusy(true);
     try {
+      // Videók egyenként
       for (const v of videos) {
         if (!v.mp4_url) continue;
         await downloadVideo(v.id, v.mp4_url, `${v.title}.mp4`, v.size_bytes);
         await new Promise((r) => setTimeout(r, 800));
+      }
+      // Képek egy ZIP-ben (gépen) / galériába (telón)
+      if (images.length > 0) {
+        await downloadImagesAll(images.map((i) => ({ id: i.id, title: i.title })));
       }
     } finally {
       setBusy(false);
     }
   }
 
+  const total = videos.length + images.length;
   return (
-    <Button variant="primary" size="lg" onClick={downloadAll} disabled={!videos.length || busy}>
+    <Button variant="primary" size="lg" onClick={downloadAll} disabled={!total || busy}>
       {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
       {busy ? "Preparing…" : "Download all"}
     </Button>
