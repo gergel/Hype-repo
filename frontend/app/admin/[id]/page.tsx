@@ -50,6 +50,8 @@ export default function AdminProjectPage() {
   const [images, setImages] = useState<ImageType[]>([]);
   const [folders, setFolders] = useState<Folder[]>([]);
   const [currentFolder, setCurrentFolder] = useState<string | null>(null); // null = root
+  const [selectedVideos, setSelectedVideos] = useState<Set<string>>(new Set());
+  const [selectedImages, setSelectedImages] = useState<Set<string>>(new Set());
   const [form, setForm] = useState({
     title: "",
     client_name: "",
@@ -70,7 +72,6 @@ export default function AdminProjectPage() {
   const coverRef = useRef<HTMLInputElement>(null);
   const dragId = useRef<string>("");
 
-  // Saját dialógusok állapota
   const [prompt, setPrompt] = useState<{
     title: string;
     value: string;
@@ -130,7 +131,6 @@ export default function AdminProjectPage() {
     const targetFolder = currentFolder;
     for (const file of files) {
       const name = file.name.replace(/\.[^.]+$/, "");
-      // Kép → egyszerű feltöltés; egyébként videó (multipart)
       if (file.type.startsWith("image/")) {
         setUploads((u) => [...u, { name, percent: 0 }]);
         try {
@@ -278,6 +278,50 @@ export default function AdminProjectPage() {
     refresh();
   }
 
+  // ---- Multi-select ----
+  function toggleVideo(videoId: string) {
+    setSelectedVideos((prev) => {
+      const next = new Set(prev);
+      if (next.has(videoId)) next.delete(videoId);
+      else next.add(videoId);
+      return next;
+    });
+  }
+
+  function toggleImage(imageId: string) {
+    setSelectedImages((prev) => {
+      const next = new Set(prev);
+      if (next.has(imageId)) next.delete(imageId);
+      else next.add(imageId);
+      return next;
+    });
+  }
+
+  function clearSelection() {
+    setSelectedVideos(new Set());
+    setSelectedImages(new Set());
+  }
+
+  function onDeleteSelected() {
+    const vIds = Array.from(selectedVideos);
+    const iIds = Array.from(selectedImages);
+    const total = vIds.length + iIds.length;
+    if (total === 0) return;
+    setConfirmDialog({
+      message: `Delete ${total} selected ${total === 1 ? "item" : "items"}? This cannot be undone.`,
+      onConfirm: async () => {
+        for (const vid of vIds) {
+          await deleteVideo(vid).catch(() => {});
+        }
+        for (const iid of iIds) {
+          await deleteImage(iid).catch(() => {});
+        }
+        clearSelection();
+        refresh();
+      },
+    });
+  }
+
   if (!data) return null;
   const portalUrl = `/p/${form.slug}`;
 
@@ -288,6 +332,7 @@ export default function AdminProjectPage() {
     currentFolder ? i.folder_id === currentFolder : !i.folder_id
   );
   const openFolder = folders.find((f) => f.id === currentFolder) || null;
+  const selectedCount = selectedVideos.size + selectedImages.size;
 
   return (
     <main className="mx-auto max-w-5xl px-6 py-12">
@@ -494,6 +539,30 @@ export default function AdminProjectPage() {
               : "Open a folder, or upload videos and images here without a folder."}
           </p>
 
+          {/* Selection bar */}
+          {selectedCount > 0 && (
+            <div className="mt-4 flex items-center justify-between rounded-xl border border-ember/40 bg-ember/10 px-3 py-2.5">
+              <span className="text-sm text-bone">
+                {selectedCount} selected
+              </span>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={clearSelection}
+                  className="text-xs text-mist transition hover:text-bone"
+                >
+                  Clear
+                </button>
+                <button
+                  onClick={onDeleteSelected}
+                  className="flex items-center gap-2 rounded-full border border-ember/50 px-3 py-1.5 text-xs text-ember transition hover:bg-ember/20"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  Delete selected
+                </button>
+              </div>
+            </div>
+          )}
+
           {uploads.length > 0 && (
             <div className="mt-4 space-y-2">
               {uploads.map((u) => (
@@ -568,8 +637,16 @@ export default function AdminProjectPage() {
                 onDragStart={() => (dragId.current = v.id)}
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={() => onDrop(v.id)}
-                className="flex items-center gap-3 rounded-xl border border-ink-line bg-ink px-3 py-2.5"
+                className={`flex items-center gap-3 rounded-xl border bg-ink px-3 py-2.5 ${
+                  selectedVideos.has(v.id) ? "border-ember/60" : "border-ink-line"
+                }`}
               >
+                <input
+                  type="checkbox"
+                  checked={selectedVideos.has(v.id)}
+                  onChange={() => toggleVideo(v.id)}
+                  className="h-4 w-4 shrink-0 accent-ember"
+                />
                 <GripVertical className="h-4 w-4 shrink-0 cursor-grab text-mist" />
                 <div className="h-9 w-16 shrink-0 overflow-hidden rounded bg-ink-soft">
                   {v.thumbnail_url && (
@@ -634,13 +711,21 @@ export default function AdminProjectPage() {
                 {visibleImages.map((img) => (
                   <div
                     key={img.id}
-                    className="group relative aspect-square overflow-hidden rounded-lg border border-ink-line bg-ink-soft"
+                    className={`group relative aspect-square overflow-hidden rounded-lg border bg-ink-soft ${
+                      selectedImages.has(img.id) ? "border-ember/60 ring-2 ring-ember/40" : "border-ink-line"
+                    }`}
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={img.url}
                       alt={img.title}
                       className="h-full w-full object-cover"
+                    />
+                    <input
+                      type="checkbox"
+                      checked={selectedImages.has(img.id)}
+                      onChange={() => toggleImage(img.id)}
+                      className="absolute left-2 top-2 h-4 w-4 accent-ember"
                     />
                     <div className="absolute inset-0 flex items-center justify-center gap-2 bg-black/50 opacity-0 transition group-hover:opacity-100">
                       {currentFolder && (
