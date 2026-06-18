@@ -1,12 +1,11 @@
 "use client";
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { RefreshCw, Plus, ExternalLink, Trash2 } from "lucide-react";
+import { Plus, ExternalLink, Trash2 } from "lucide-react";
 import {
   adminLogin,
   listProjects,
   createProject,
-  syncNotion,
   deleteProject,
   ProjectSummary,
 } from "@/lib/api";
@@ -70,12 +69,14 @@ function Login({ onIn }: { onIn: () => void }) {
 
 function Dashboard() {
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
-  const [syncing, setSyncing] = useState(false);
   const [creating, setCreating] = useState(false);
   const [title, setTitle] = useState("");
   const [client, setClient] = useState("");
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState<"date_desc" | "date_asc" | "name">("date_desc");
+  const [confirmDelete, setConfirmDelete] = useState<{ id: string; title: string } | null>(
+    null
+  );
 
   async function refresh() {
     setProjects(await listProjects());
@@ -83,16 +84,6 @@ function Dashboard() {
   useEffect(() => {
     refresh();
   }, []);
-
-  async function doSync() {
-    setSyncing(true);
-    try {
-      await syncNotion();
-      await refresh();
-    } finally {
-      setSyncing(false);
-    }
-  }
 
   async function doCreate() {
     if (!title) return;
@@ -103,14 +94,16 @@ function Dashboard() {
     refresh();
   }
 
-  async function onDelete(e: React.MouseEvent, id: string, title: string) {
+  function onDelete(e: React.MouseEvent, id: string, title: string) {
     e.preventDefault();
     e.stopPropagation();
-    const ok = window.confirm(
-      `Are you sure you want to delete the project "${title}" along with all of its videos? This action cannot be undone.`
-    );
-    if (!ok) return;
-    await deleteProject(id);
+    setConfirmDelete({ id, title });
+  }
+
+  async function doDelete() {
+    if (!confirmDelete) return;
+    await deleteProject(confirmDelete.id);
+    setConfirmDelete(null);
     refresh();
   }
 
@@ -141,10 +134,6 @@ function Dashboard() {
           <h1 className="mt-1 font-display text-3xl text-bone">Projects</h1>
         </div>
         <div className="flex gap-3">
-          <Button variant="ghost" onClick={doSync} disabled={syncing}>
-            <RefreshCw className={`h-4 w-4 ${syncing ? "animate-spin" : ""}`} />
-            Sync Notion
-          </Button>
           <Button variant="ember" onClick={() => setCreating((v) => !v)}>
             <Plus className="h-4 w-4" />
             New project
@@ -174,7 +163,7 @@ function Dashboard() {
 
       <div className="mt-6 flex flex-wrap items-center gap-3">
         <input
-          placeholder="Keresés: projekt, ügyfél vagy dátum…"
+          placeholder="Search: project, client or date…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="flex-1 rounded-full border border-ink-line bg-ink px-4 py-2.5 text-bone outline-none focus:border-ember/60"
@@ -184,9 +173,9 @@ function Dashboard() {
           onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
           className="rounded-full border border-ink-line bg-ink px-4 py-2.5 text-bone outline-none focus:border-ember/60"
         >
-          <option value="date_desc">Dátum (legújabb elöl)</option>
-          <option value="date_asc">Dátum (legrégebbi elöl)</option>
-          <option value="name">Név szerint (A–Z)</option>
+          <option value="date_desc">Date (newest first)</option>
+          <option value="date_asc">Date (oldest first)</option>
+          <option value="name">Name (A–Z)</option>
         </select>
       </div>
 
@@ -194,8 +183,8 @@ function Dashboard() {
         {visibleProjects.length === 0 && (
           <p className="p-8 text-center text-mist">
             {projects.length === 0
-              ? "No projects yet. Create one or sync from Notion."
-              : "Nincs találat a keresésre."}
+              ? "No projects yet. Create one to get started."
+              : "No results for your search."}
           </p>
         )}
         {visibleProjects.map((p) => (
@@ -228,7 +217,7 @@ function Dashboard() {
             <ExternalLink className="h-4 w-4 text-mist" />
             <button
               onClick={(e) => onDelete(e, p.id, p.title)}
-              title="Projekt törlése"
+              title="Delete project"
               className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-mist transition hover:bg-ember/10 hover:text-ember"
             >
               <Trash2 className="h-4 w-4" />
@@ -236,6 +225,35 @@ function Dashboard() {
           </a>
         ))}
       </div>
+
+      {/* Delete confirm dialog */}
+      {confirmDelete && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-6"
+          onClick={() => setConfirmDelete(null)}
+        >
+          <div
+            className="w-full max-w-sm rounded-2xl border border-ink-line bg-ink-card p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <p className="text-sm leading-relaxed text-bone">
+              Delete the project &ldquo;{confirmDelete.title}&rdquo; along with all of its
+              videos? This cannot be undone.
+            </p>
+            <div className="mt-5 flex justify-end gap-3">
+              <Button variant="ghost" size="sm" onClick={() => setConfirmDelete(null)}>
+                Cancel
+              </Button>
+              <button
+                onClick={doDelete}
+                className="flex items-center gap-2 rounded-full border border-ember/40 px-4 py-2 text-sm text-ember transition hover:bg-ember/10"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
