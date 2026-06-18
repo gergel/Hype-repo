@@ -427,9 +427,10 @@ def delete_folder(
     folder = db.query(Folder).get(folder_id)
     if not folder:
         raise HTTPException(status_code=404, detail="Not found")
-    # a benne lévő videók mappa nélkülivé válnak (nem törlődnek)
-    for v in folder.videos:
-        v.folder_id = None
+    # a benne lévő videók is törlődnek (R2-ből és DB-ből)
+    for v in list(folder.videos):
+        storage.delete_prefix(f"videos/{v.id}")
+        db.delete(v)
     db.delete(folder)
     db.commit()
     return {"ok": True}
