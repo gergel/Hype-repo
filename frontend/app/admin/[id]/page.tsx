@@ -1,7 +1,15 @@
 "use client";
 import { useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { uploadCover, deleteCover } from "@/lib/api";
+import {
+  uploadCover,
+  deleteCover,
+  createFolder,
+  updateFolder,
+  deleteFolder,
+  setVideoFolder,
+  Folder,
+} from "@/lib/api";
 import {
   GripVertical,
   Upload,
@@ -9,6 +17,7 @@ import {
   Replace,
   Link2,
   Save,
+  FolderPlus,
 } from "lucide-react";
 import {
   getProjectDetail,
@@ -31,6 +40,8 @@ export default function AdminProjectPage() {
     null
   );
   const [videos, setVideos] = useState<Video[]>([]);
+  const [folders, setFolders] = useState<Folder[]>([]);
+  const [newFolder, setNewFolder] = useState("");
   const [form, setForm] = useState({
     title: "",
     client_name: "",
@@ -54,6 +65,7 @@ export default function AdminProjectPage() {
     const d = await getProjectDetail(id);
     setData(d);
     setVideos(d.videos);
+    setFolders((d as never)["folders"] || []);
     setForm((f) => ({
       ...f,
       title: d.title,
@@ -104,7 +116,6 @@ export default function AdminProjectPage() {
           );
         });
       } finally {
-        // feltöltés kész → vegyük le a listáról kis késleltetéssel
         setTimeout(() => {
           setUploads((u) => u.filter((item) => item.name !== name));
         }, 1500);
@@ -159,6 +170,34 @@ export default function AdminProjectPage() {
     if (!ok) return;
     await deleteProject(id);
     router.push("/admin");
+  }
+
+  // ---- Folders ----
+  async function onCreateFolder() {
+    const name = newFolder.trim();
+    if (!name) return;
+    await createFolder(id, name);
+    setNewFolder("");
+    refresh();
+  }
+
+  async function onRenameFolder(folderId: string, name: string) {
+    await updateFolder(folderId, { name });
+    refresh();
+  }
+
+  async function onDeleteFolder(folderId: string) {
+    const ok = window.confirm(
+      "Törlöd a mappát? A benne lévő videók megmaradnak, csak kikerülnek a mappából."
+    );
+    if (!ok) return;
+    await deleteFolder(folderId);
+    refresh();
+  }
+
+  async function onChangeVideoFolder(videoId: string, folderId: string) {
+    await setVideoFolder(videoId, folderId || null);
+    refresh();
   }
 
   if (!data) return null;
@@ -293,6 +332,49 @@ export default function AdminProjectPage() {
               Copied: {shareUrl}
             </p>
           )}
+
+          {/* Folders */}
+          <div className="mt-8 border-t border-ink-line pt-6">
+            <h3 className="font-display text-lg text-bone">Mappák</h3>
+            <div className="mt-3 flex items-center gap-2">
+              <input
+                placeholder="Új mappa neve"
+                value={newFolder}
+                onChange={(e) => setNewFolder(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && onCreateFolder()}
+                className="flex-1 rounded-full border border-ink-line bg-ink px-4 py-2 text-bone outline-none focus:border-ember/60"
+              />
+              <Button variant="primary" size="sm" onClick={onCreateFolder}>
+                <FolderPlus className="h-4 w-4" />
+                Hozzáad
+              </Button>
+            </div>
+            {folders.length > 0 && (
+              <ul className="mt-3 space-y-2">
+                {folders.map((f) => (
+                  <li
+                    key={f.id}
+                    className="flex items-center gap-2 rounded-xl border border-ink-line bg-ink px-3 py-2"
+                  >
+                    <input
+                      defaultValue={f.name}
+                      onBlur={(e) => {
+                        if (e.target.value !== f.name) onRenameFolder(f.id, e.target.value);
+                      }}
+                      className="flex-1 bg-transparent text-sm text-bone outline-none"
+                    />
+                    <button
+                      title="Mappa törlése"
+                      onClick={() => onDeleteFolder(f.id)}
+                      className="text-mist transition hover:text-ember"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
         </section>
 
         {/* Videos */}
@@ -366,6 +448,18 @@ export default function AdminProjectPage() {
                       ? "Processing…"
                       : "Failed"}
                   </p>
+                  <select
+                    value={v.folder_id || ""}
+                    onChange={(e) => onChangeVideoFolder(v.id, e.target.value)}
+                    className="mt-1 w-full rounded-lg border border-ink-line bg-ink-soft px-2 py-1 text-[11px] text-mist outline-none focus:border-ember/60"
+                  >
+                    <option value="">Nincs mappa</option>
+                    {folders.map((f) => (
+                      <option key={f.id} value={f.id}>
+                        {f.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 <button
                   title="Replace"
