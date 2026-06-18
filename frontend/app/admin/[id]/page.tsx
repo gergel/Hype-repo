@@ -8,7 +8,11 @@ import {
   updateFolder,
   deleteFolder,
   setVideoFolder,
+  uploadImage,
+  deleteImage,
+  setImageFolder,
   Folder,
+  Image as ImageType,
 } from "@/lib/api";
 import {
   GripVertical,
@@ -43,6 +47,7 @@ export default function AdminProjectPage() {
     null
   );
   const [videos, setVideos] = useState<Video[]>([]);
+  const [images, setImages] = useState<ImageType[]>([]);
   const [folders, setFolders] = useState<Folder[]>([]);
   const [currentFolder, setCurrentFolder] = useState<string | null>(null); // null = root
   const [form, setForm] = useState({
@@ -80,6 +85,7 @@ export default function AdminProjectPage() {
     const d = await getProjectDetail(id);
     setData(d);
     setVideos(d.videos);
+    setImages((d as never)["images"] || []);
     setFolders((d as never)["folders"] || []);
     setForm((f) => ({
       ...f,
@@ -124,6 +130,18 @@ export default function AdminProjectPage() {
     const targetFolder = currentFolder;
     for (const file of files) {
       const name = file.name.replace(/\.[^.]+$/, "");
+      // Kép → egyszerű feltöltés; egyébként videó (multipart)
+      if (file.type.startsWith("image/")) {
+        setUploads((u) => [...u, { name, percent: 0 }]);
+        try {
+          await uploadImage(id, file, targetFolder);
+        } finally {
+          setTimeout(() => {
+            setUploads((u) => u.filter((item) => item.name !== name));
+          }, 800);
+        }
+        continue;
+      }
       setUploads((u) => [...u, { name, percent: 0 }]);
       try {
         const result = await uploadVideo(id, file, name, (percent) => {
@@ -185,7 +203,7 @@ export default function AdminProjectPage() {
   function onDeleteProject() {
     setConfirmDialog({
       message:
-        "Are you sure you want to delete this project along with all of its videos? This cannot be undone.",
+        "Are you sure you want to delete this project along with all of its videos and images? This cannot be undone.",
       onConfirm: async () => {
         await deleteProject(id);
         router.push("/admin");
@@ -221,7 +239,7 @@ export default function AdminProjectPage() {
 
   function onDeleteFolder(folderId: string) {
     setConfirmDialog({
-      message: "Delete this folder and all videos inside it? This cannot be undone.",
+      message: "Delete this folder and all videos and images inside it? This cannot be undone.",
       onConfirm: async () => {
         await deleteFolder(folderId);
         if (currentFolder === folderId) setCurrentFolder(null);
@@ -240,8 +258,23 @@ export default function AdminProjectPage() {
     });
   }
 
+  function onDeleteImage(imageId: string) {
+    setConfirmDialog({
+      message: "Delete this image? This cannot be undone.",
+      onConfirm: async () => {
+        await deleteImage(imageId);
+        refresh();
+      },
+    });
+  }
+
   async function onRemoveFromFolder(videoId: string) {
     await setVideoFolder(videoId, null);
+    refresh();
+  }
+
+  async function onRemoveImageFromFolder(imageId: string) {
+    await setImageFolder(imageId, null);
     refresh();
   }
 
@@ -250,6 +283,9 @@ export default function AdminProjectPage() {
 
   const visibleVideos = videos.filter((v) =>
     currentFolder ? v.folder_id === currentFolder : !v.folder_id
+  );
+  const visibleImages = images.filter((i) =>
+    currentFolder ? i.folder_id === currentFolder : !i.folder_id
   );
   const openFolder = folders.find((f) => f.id === currentFolder) || null;
 
@@ -444,7 +480,7 @@ export default function AdminProjectPage() {
             <input
               ref={fileRef}
               type="file"
-              accept="video/*"
+              accept="video/*,image/*"
               multiple
               hidden
               onChange={onUpload}
@@ -454,8 +490,8 @@ export default function AdminProjectPage() {
 
           <p className="mt-2 text-xs text-mist">
             {currentFolder
-              ? "Uploaded videos will go into this folder."
-              : "Open a folder, or upload videos here without a folder."}
+              ? "Uploaded videos and images will go into this folder."
+              : "Open a folder, or upload videos and images here without a folder."}
           </p>
 
           {uploads.length > 0 && (
@@ -486,7 +522,8 @@ export default function AdminProjectPage() {
           {!currentFolder && folders.length > 0 && (
             <ul className="mt-4 space-y-2">
               {folders.map((f) => {
-                const count = videos.filter((v) => v.folder_id === f.id).length;
+                const vCount = videos.filter((v) => v.folder_id === f.id).length;
+                const iCount = images.filter((i) => i.folder_id === f.id).length;
                 return (
                   <li
                     key={f.id}
@@ -499,7 +536,7 @@ export default function AdminProjectPage() {
                       <FolderIcon className="h-5 w-5 shrink-0 text-ember" />
                       <span className="truncate text-sm text-bone">{f.name}</span>
                       <span className="ml-auto shrink-0 font-mono text-[11px] text-mist">
-                        {count} {count === 1 ? "video" : "videos"}
+                        {vCount + iCount} {vCount + iCount === 1 ? "item" : "items"}
                       </span>
                     </button>
                     <button
@@ -581,11 +618,53 @@ export default function AdminProjectPage() {
             {visibleVideos.length === 0 && (
               <li className="py-8 text-center text-sm text-mist">
                 {currentFolder
-                  ? "Empty folder. Upload videos here."
-                  : "No videos without a folder. Open a folder or upload here."}
+                  ? "No videos in this folder."
+                  : "No videos without a folder."}
               </li>
             )}
           </ul>
+
+          {/* Images in current view */}
+          {visibleImages.length > 0 && (
+            <div className="mt-6">
+              <h3 className="mb-3 font-mono text-[11px] uppercase tracking-eyebrow text-mist">
+                Images
+              </h3>
+              <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+                {visibleImages.map((img) => (
+                  <div
+                    key={img.id}
+                    className="group relative aspect-square overflow-hidden rounded-lg border border-ink-line bg-ink-soft"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={img.url}
+                      alt={img.title}
+                      className="h-full w-full object-cover"
+                    />
+                    <div className="absolute inset-0 flex items-center justify-center gap-2 bg-black/50 opacity-0 transition group-hover:opacity-100">
+                      {currentFolder && (
+                        <button
+                          title="Remove from folder"
+                          onClick={() => onRemoveImageFromFolder(img.id)}
+                          className="flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-bone transition hover:text-white"
+                        >
+                          <ArrowLeft className="h-4 w-4" />
+                        </button>
+                      )}
+                      <button
+                        title="Delete"
+                        onClick={() => onDeleteImage(img.id)}
+                        className="flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-bone transition hover:text-ember"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </section>
       </div>
 
