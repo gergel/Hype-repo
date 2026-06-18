@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { Download, ArrowDown, Loader2 } from "lucide-react";
-import { PublicProject, Video } from "@/lib/api";
+import { PublicProject, Video, Folder } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { VideoCard } from "@/components/video-card";
 import { VideoPlayer } from "@/components/video-player";
@@ -11,6 +11,17 @@ import { downloadVideo } from "@/lib/utils";
 export function PortalView({ project }: { project: PublicProject }) {
   const [active, setActive] = useState<Video | null>(null);
   const hasCustomCover = !!project.cover_image_url;
+
+  const folders = project.folders || [];
+  // Mappa nélküli videók (folder_id üres/null)
+  const looseVideos = project.videos.filter((v) => !v.folder_id);
+  // Csak azok a mappák, amikben van videó
+  const foldersWithVideos = folders
+    .map((f) => ({
+      folder: f,
+      videos: project.videos.filter((v) => v.folder_id === f.id),
+    }))
+    .filter((g) => g.videos.length > 0);
 
   return (
     <main className="relative">
@@ -92,7 +103,7 @@ export function PortalView({ project }: { project: PublicProject }) {
         </div>
       </section>
 
-      {/* ---------- Films grid ---------- */}
+      {/* ---------- Films ---------- */}
       <section id="films" className="mx-auto max-w-6xl px-6 py-20 sm:py-28">
         <div className="mb-10 flex items-end justify-between border-b border-ink-line pb-6">
           <h2 className="font-display text-2xl text-bone sm:text-3xl">The films</h2>
@@ -106,9 +117,28 @@ export function PortalView({ project }: { project: PublicProject }) {
             Films are being prepared. Check back shortly.
           </p>
         ) : (
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {project.videos.map((v, i) => (
-              <VideoCard key={v.id} video={v} index={i} onPlay={setActive} />
+          <div className="space-y-16">
+            {/* Mappa nélküli videók (cím nélkül, legfelül) */}
+            {looseVideos.length > 0 && (
+              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                {looseVideos.map((v, i) => (
+                  <VideoCard key={v.id} video={v} index={i} onPlay={setActive} />
+                ))}
+              </div>
+            )}
+
+            {/* Mappánkénti szekciók */}
+            {foldersWithVideos.map(({ folder, videos }) => (
+              <div key={folder.id}>
+                <h3 className="mb-6 font-display text-xl text-bone sm:text-2xl">
+                  {folder.name}
+                </h3>
+                <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                  {videos.map((v, i) => (
+                    <VideoCard key={v.id} video={v} index={i} onPlay={setActive} />
+                  ))}
+                </div>
+              </div>
             ))}
           </div>
         )}
