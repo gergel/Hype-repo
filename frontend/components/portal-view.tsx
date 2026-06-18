@@ -147,7 +147,7 @@ function DownloadAllButton({ videos }: { videos: Video[] }) {
   return (
     <Button variant="primary" size="lg" onClick={downloadAll} disabled={!videos.length || busy}>
       {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-      {busy ? "Előkészítés…" : "Download all"}
+      {busy ? "Preparing…" : "Download all"}
     </Button>
   );
 }
