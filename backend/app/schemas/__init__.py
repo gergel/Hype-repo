@@ -94,6 +94,7 @@ class ProjectUpdate(BaseModel):
     slug: Optional[str] = None
     password: Optional[str] = None  # "" clears password
     project_date: Optional[str] = None
+    expires_at: Optional[datetime] = None
 
 
 class ProjectSummary(BaseModel):
@@ -106,6 +107,7 @@ class ProjectSummary(BaseModel):
     status: str
     brand: str = "hype"
     project_date: str = ""
+    expires_at: Optional[datetime] = None
     has_password: bool = False
 
 
