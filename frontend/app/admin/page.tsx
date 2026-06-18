@@ -136,7 +136,7 @@ function Dashboard() {
       <div className="flex items-center justify-between">
         <div>
           <p className="font-mono text-xs uppercase tracking-eyebrow text-mist">
-            HYPE Production
+            HYPE Productions
           </p>
           <h1 className="mt-1 font-display text-3xl text-bone">Projects</h1>
         </div>
