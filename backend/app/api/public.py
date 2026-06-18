@@ -7,8 +7,9 @@ from app.core.security import (
     create_access_token,
     decode_token,
 )
-from app.models import Project
+from app.models import Project, Video
 from app.schemas import PublicProject, ProjectUnlock, VideoOut
+from app.services import storage
 
 router = APIRouter(prefix="/api/public", tags=["public"])
 
@@ -55,6 +56,7 @@ def get_public_project(
                     "cover_image_url": project.cover_image_url}
 
     return {"locked": False, "project": _serialize(project).model_dump()}
+
 
 @router.get("/videos/{video_id}/download")
 def public_video_download(video_id: str, db: Session = Depends(get_db)):
