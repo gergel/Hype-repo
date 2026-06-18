@@ -43,6 +43,7 @@ class ImageOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: str
     title: str
+    folder_id: Optional[str] = None
     url: str
     width: int
     height: int
