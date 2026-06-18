@@ -1,12 +1,12 @@
 "use client";
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Download, ArrowDown } from "lucide-react";
+import { Download, ArrowDown, Loader2 } from "lucide-react";
 import { PublicProject, Video } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { VideoCard } from "@/components/video-card";
 import { VideoPlayer } from "@/components/video-player";
-import { forceDownload } from "@/lib/utils";
+import { downloadVideo } from "@/lib/utils";
 
 export function PortalView({ project }: { project: PublicProject }) {
   const [active, setActive] = useState<Video | null>(null);
@@ -126,18 +126,28 @@ export function PortalView({ project }: { project: PublicProject }) {
 }
 
 function DownloadAllButton({ videos }: { videos: Video[] }) {
-  function downloadAll() {
-    videos.forEach((v, i) => {
-      if (!v.mp4_url) return;
-      setTimeout(() => {
-        forceDownload(v.mp4_url, `${v.title}.mp4`);
-      }, i * 800);
-    });
+  const [busy, setBusy] = useState(false);
+
+  async function downloadAll() {
+    if (busy) return;
+    setBusy(true);
+    try {
+      // egyenként, sorban — minden videó az új letöltési móddal
+      for (const v of videos) {
+        if (!v.mp4_url) continue;
+        await downloadVideo(v.id, v.mp4_url, `${v.title}.mp4`);
+        // kis szünet a böngésző letöltéskezelőjének
+        await new Promise((r) => setTimeout(r, 800));
+      }
+    } finally {
+      setBusy(false);
+    }
   }
+
   return (
-    <Button variant="primary" size="lg" onClick={downloadAll} disabled={!videos.length}>
-      <Download className="h-4 w-4" />
-      Download all
+    <Button variant="primary" size="lg" onClick={downloadAll} disabled={!videos.length || busy}>
+      {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+      {busy ? "Előkészítés…" : "Download all"}
     </Button>
   );
 }
