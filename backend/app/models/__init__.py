@@ -1,6 +1,5 @@
 import uuid
 from datetime import datetime, timezone
-
 from sqlalchemy import (
     Column,
     String,
@@ -12,7 +11,6 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
-
 from app.core.database import Base
 
 
@@ -48,11 +46,33 @@ class Project(Base):
     sort_order = Column(Integer, default=0)
     created_at = Column(DateTime(timezone=True), default=_now)
     updated_at = Column(DateTime(timezone=True), default=_now, onupdate=_now)
-
     videos = relationship(
         "Video",
         back_populates="project",
         cascade="all, delete-orphan",
+        order_by="Video.sort_order",
+    )
+    folders = relationship(
+        "Folder",
+        back_populates="project",
+        cascade="all, delete-orphan",
+        order_by="Folder.sort_order",
+    )
+
+
+class Folder(Base):
+    __tablename__ = "folders"
+    id = Column(String, primary_key=True, default=_uuid)
+    project_id = Column(
+        String, ForeignKey("projects.id", ondelete="CASCADE"), index=True
+    )
+    name = Column(String, nullable=False, default="")
+    sort_order = Column(Integer, default=0)
+    created_at = Column(DateTime(timezone=True), default=_now)
+    project = relationship("Project", back_populates="folders")
+    videos = relationship(
+        "Video",
+        back_populates="folder",
         order_by="Video.sort_order",
     )
 
@@ -62,6 +82,9 @@ class Video(Base):
     id = Column(String, primary_key=True, default=_uuid)
     project_id = Column(
         String, ForeignKey("projects.id", ondelete="CASCADE"), index=True
+    )
+    folder_id = Column(
+        String, ForeignKey("folders.id", ondelete="SET NULL"), nullable=True, index=True
     )
     title = Column(String, nullable=False)
     # storage keys / urls
@@ -79,5 +102,5 @@ class Video(Base):
     status = Column(String, default="processing")   # processing | ready | failed
     sort_order = Column(Integer, default=0)
     created_at = Column(DateTime(timezone=True), default=_now)
-
     project = relationship("Project", back_populates="videos")
+    folder = relationship("Folder", back_populates="videos")
