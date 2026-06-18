@@ -64,6 +64,17 @@ export default function AdminProjectPage() {
   const coverRef = useRef<HTMLInputElement>(null);
   const dragId = useRef<string>("");
 
+  // Saját dialógusok állapota
+  const [prompt, setPrompt] = useState<{
+    title: string;
+    value: string;
+    onConfirm: (value: string) => void;
+  } | null>(null);
+  const [confirmDialog, setConfirmDialog] = useState<{
+    message: string;
+    onConfirm: () => void;
+  } | null>(null);
+
   async function refresh() {
     const d = await getProjectDetail(id);
     setData(d);
@@ -169,39 +180,62 @@ export default function AdminProjectPage() {
     navigator.clipboard?.writeText(url).catch(() => {});
   }
 
-  async function onDeleteProject() {
-    const ok = window.confirm(
-      "Are you sure you want to delete this project along with all of its videos? This cannot be undone."
-    );
-    if (!ok) return;
-    await deleteProject(id);
-    router.push("/admin");
+  function onDeleteProject() {
+    setConfirmDialog({
+      message:
+        "Are you sure you want to delete this project along with all of its videos? This cannot be undone.",
+      onConfirm: async () => {
+        await deleteProject(id);
+        router.push("/admin");
+      },
+    });
   }
 
   // ---- Folders ----
-  async function onCreateFolder() {
-    const name = window.prompt("New folder name:");
-    if (!name || !name.trim()) return;
-    await createFolder(id, name.trim());
-    refresh();
+  function onCreateFolder() {
+    setPrompt({
+      title: "New folder name",
+      value: "",
+      onConfirm: async (name) => {
+        if (!name.trim()) return;
+        await createFolder(id, name.trim());
+        refresh();
+      },
+    });
   }
 
-  async function onRenameFolder(folderId: string) {
+  function onRenameFolder(folderId: string) {
     const current = folders.find((f) => f.id === folderId);
-    const name = window.prompt("New folder name:", current?.name || "");
-    if (name === null) return;
-    await updateFolder(folderId, { name });
-    refresh();
+    setPrompt({
+      title: "New folder name",
+      value: current?.name || "",
+      onConfirm: async (name) => {
+        if (!name.trim()) return;
+        await updateFolder(folderId, { name: name.trim() });
+        refresh();
+      },
+    });
   }
 
-  async function onDeleteFolder(folderId: string) {
-    const ok = window.confirm(
-      "Delete this folder and all videos inside it? This cannot be undone."
-    );
-    if (!ok) return;
-    await deleteFolder(folderId);
-    if (currentFolder === folderId) setCurrentFolder(null);
-    refresh();
+  function onDeleteFolder(folderId: string) {
+    setConfirmDialog({
+      message: "Delete this folder and all videos inside it? This cannot be undone.",
+      onConfirm: async () => {
+        await deleteFolder(folderId);
+        if (currentFolder === folderId) setCurrentFolder(null);
+        refresh();
+      },
+    });
+  }
+
+  function onDeleteVideo(videoId: string) {
+    setConfirmDialog({
+      message: "Delete this video? This cannot be undone.",
+      onConfirm: async () => {
+        await deleteVideo(videoId);
+        refresh();
+      },
+    });
   }
 
   async function onRemoveFromFolder(videoId: string) {
@@ -505,10 +539,7 @@ export default function AdminProjectPage() {
                 </button>
                 <button
                   title="Delete"
-                  onClick={async () => {
-                    await deleteVideo(v.id);
-                    refresh();
-                  }}
+                  onClick={() => onDeleteVideo(v.id)}
                   className="text-mist transition hover:text-ember"
                 >
                   <Trash2 className="h-4 w-4" />
@@ -525,6 +556,33 @@ export default function AdminProjectPage() {
           </ul>
         </section>
       </div>
+
+      {/* Saját prompt dialógus */}
+      {prompt && (
+        <PromptDialog
+          title={prompt.title}
+          initialValue={prompt.value}
+          onCancel={() => setPrompt(null)}
+          onConfirm={(value) => {
+            const cb = prompt.onConfirm;
+            setPrompt(null);
+            cb(value);
+          }}
+        />
+      )}
+
+      {/* Saját confirm dialógus */}
+      {confirmDialog && (
+        <ConfirmDialog
+          message={confirmDialog.message}
+          onCancel={() => setConfirmDialog(null)}
+          onConfirm={() => {
+            const cb = confirmDialog.onConfirm;
+            setConfirmDialog(null);
+            cb();
+          }}
+        />
+      )}
     </main>
   );
 }
@@ -554,6 +612,86 @@ function Field({
         onChange={(e) => onChange(e.target.value)}
         className="mt-1.5 w-full rounded-full border border-ink-line bg-ink px-4 py-2.5 text-bone outline-none focus:border-ember/60"
       />
+    </div>
+  );
+}
+
+function PromptDialog({
+  title,
+  initialValue,
+  onCancel,
+  onConfirm,
+}: {
+  title: string;
+  initialValue: string;
+  onCancel: () => void;
+  onConfirm: (value: string) => void;
+}) {
+  const [value, setValue] = useState(initialValue);
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-6"
+      onClick={onCancel}
+    >
+      <div
+        className="w-full max-w-sm rounded-2xl border border-ink-line bg-ink-card p-6"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h3 className="font-display text-lg text-bone">{title}</h3>
+        <input
+          autoFocus
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") onConfirm(value);
+            if (e.key === "Escape") onCancel();
+          }}
+          className="mt-4 w-full rounded-full border border-ink-line bg-ink px-4 py-2.5 text-bone outline-none focus:border-ember/60"
+        />
+        <div className="mt-5 flex justify-end gap-3">
+          <Button variant="ghost" size="sm" onClick={onCancel}>
+            Cancel
+          </Button>
+          <Button variant="primary" size="sm" onClick={() => onConfirm(value)}>
+            OK
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ConfirmDialog({
+  message,
+  onCancel,
+  onConfirm,
+}: {
+  message: string;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-6"
+      onClick={onCancel}
+    >
+      <div
+        className="w-full max-w-sm rounded-2xl border border-ink-line bg-ink-card p-6"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <p className="text-sm leading-relaxed text-bone">{message}</p>
+        <div className="mt-5 flex justify-end gap-3">
+          <Button variant="ghost" size="sm" onClick={onCancel}>
+            Cancel
+          </Button>
+          <button
+            onClick={onConfirm}
+            className="flex items-center gap-2 rounded-full border border-ember/40 px-4 py-2 text-sm text-ember transition hover:bg-ember/10"
+          >
+            Delete
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
