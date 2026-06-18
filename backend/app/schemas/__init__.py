@@ -38,6 +38,18 @@ class VideoUpdate(BaseModel):
     folder_id: Optional[str] = None
 
 
+# ---------- Image ----------
+class ImageOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: str
+    title: str
+    url: str
+    width: int
+    height: int
+    size_bytes: int
+    sort_order: int
+
+
 # ---------- Folder ----------
 class FolderOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -101,6 +113,7 @@ class ProjectDetail(ProjectSummary):
     share_token: str
     videos: List[VideoOut] = []
     folders: List[FolderOut] = []
+    images: List[ImageOut] = []
 
 
 class PublicProject(BaseModel):
@@ -114,6 +127,7 @@ class PublicProject(BaseModel):
     project_date: str = ""
     videos: List[VideoOut] = []
     folders: List[FolderOut] = []
+    images: List[ImageOut] = []
 
 
 class ReorderPayload(BaseModel):
