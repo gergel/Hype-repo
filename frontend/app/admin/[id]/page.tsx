@@ -49,7 +49,7 @@ export default function AdminProjectPage() {
   const [videos, setVideos] = useState<Video[]>([]);
   const [images, setImages] = useState<ImageType[]>([]);
   const [folders, setFolders] = useState<Folder[]>([]);
-  const [currentFolder, setCurrentFolder] = useState<string | null>(null); // null = root
+  const [currentFolder, setCurrentFolder] = useState<string | null>(null);
   const [selectedVideos, setSelectedVideos] = useState<Set<string>>(new Set());
   const [selectedImages, setSelectedImages] = useState<Set<string>>(new Set());
   const [form, setForm] = useState({
@@ -211,7 +211,6 @@ export default function AdminProjectPage() {
     });
   }
 
-  // ---- Folders ----
   function onCreateFolder() {
     setPrompt({
       title: "New folder name",
@@ -278,7 +277,6 @@ export default function AdminProjectPage() {
     refresh();
   }
 
-  // ---- Multi-select ----
   function toggleVideo(videoId: string) {
     setSelectedVideos((prev) => {
       const next = new Set(prev);
@@ -542,9 +540,7 @@ export default function AdminProjectPage() {
           {/* Selection bar */}
           {selectedCount > 0 && (
             <div className="mt-4 flex items-center justify-between rounded-xl border border-ember/40 bg-ember/10 px-3 py-2.5">
-              <span className="text-sm text-bone">
-                {selectedCount} selected
-              </span>
+              <span className="text-sm text-bone">{selectedCount} selected</span>
               <div className="flex items-center gap-3">
                 <button
                   onClick={clearSelection}
@@ -630,68 +626,72 @@ export default function AdminProjectPage() {
 
           {/* Videos in current view */}
           <ul className="mt-2 space-y-2">
-            {visibleVideos.map((v) => (
-              <li
-                key={v.id}
-                draggable
-                onDragStart={() => (dragId.current = v.id)}
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={() => onDrop(v.id)}
-                className={`flex items-center gap-3 rounded-xl border bg-ink px-3 py-2.5 ${
-                  selectedVideos.has(v.id) ? "border-ember/60" : "border-ink-line"
-                }`}
-              >
-                <input
-                  type="checkbox"
-                  checked={selectedVideos.has(v.id)}
-                  onChange={() => toggleVideo(v.id)}
-                  className="h-4 w-4 shrink-0 accent-ember"
-                />
-                <GripVertical className="h-4 w-4 shrink-0 cursor-grab text-mist" />
-                <div className="h-9 w-16 shrink-0 overflow-hidden rounded bg-ink-soft">
-                  {v.thumbnail_url && (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={v.thumbnail_url} alt="" className="h-full w-full object-cover" />
+            {visibleVideos.map((v) => {
+              const isSelected = selectedVideos.has(v.id);
+              return (
+                <li
+                  key={v.id}
+                  draggable={!isSelected}
+                  onDragStart={() => (dragId.current = v.id)}
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={() => onDrop(v.id)}
+                  className={`flex items-center gap-3 rounded-xl border bg-ink px-3 py-2.5 ${
+                    isSelected ? "border-ember/60" : "border-ink-line"
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={isSelected}
+                    onChange={() => toggleVideo(v.id)}
+                    onClick={(e) => e.stopPropagation()}
+                    className="h-4 w-4 shrink-0 cursor-pointer accent-ember"
+                  />
+                  <GripVertical className="h-4 w-4 shrink-0 cursor-grab text-mist" />
+                  <div className="h-9 w-16 shrink-0 overflow-hidden rounded bg-ink-soft">
+                    {v.thumbnail_url && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={v.thumbnail_url} alt="" className="h-full w-full object-cover" />
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm text-bone">{v.title}</p>
+                    <p className="font-mono text-[11px] text-mist">
+                      {v.status === "ready"
+                        ? `${v.resolution_label} · ${formatDuration(v.duration_seconds)} · ${formatBytes(v.size_bytes)}`
+                        : v.status === "processing"
+                        ? "Processing…"
+                        : "Failed"}
+                    </p>
+                  </div>
+                  {currentFolder && (
+                    <button
+                      title="Remove from folder"
+                      onClick={() => onRemoveFromFolder(v.id)}
+                      className="text-mist transition hover:text-bone"
+                    >
+                      <ArrowLeft className="h-4 w-4" />
+                    </button>
                   )}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm text-bone">{v.title}</p>
-                  <p className="font-mono text-[11px] text-mist">
-                    {v.status === "ready"
-                      ? `${v.resolution_label} · ${formatDuration(v.duration_seconds)} · ${formatBytes(v.size_bytes)}`
-                      : v.status === "processing"
-                      ? "Processing…"
-                      : "Failed"}
-                  </p>
-                </div>
-                {currentFolder && (
                   <button
-                    title="Remove from folder"
-                    onClick={() => onRemoveFromFolder(v.id)}
+                    title="Replace"
+                    onClick={() => {
+                      replaceId.current = v.id;
+                      replaceRef.current?.click();
+                    }}
                     className="text-mist transition hover:text-bone"
                   >
-                    <ArrowLeft className="h-4 w-4" />
+                    <Replace className="h-4 w-4" />
                   </button>
-                )}
-                <button
-                  title="Replace"
-                  onClick={() => {
-                    replaceId.current = v.id;
-                    replaceRef.current?.click();
-                  }}
-                  className="text-mist transition hover:text-bone"
-                >
-                  <Replace className="h-4 w-4" />
-                </button>
-                <button
-                  title="Delete"
-                  onClick={() => onDeleteVideo(v.id)}
-                  className="text-mist transition hover:text-ember"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
-              </li>
-            ))}
+                  <button
+                    title="Delete"
+                    onClick={() => onDeleteVideo(v.id)}
+                    className="text-mist transition hover:text-ember"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </li>
+              );
+            })}
             {visibleVideos.length === 0 && (
               <li className="py-8 text-center text-sm text-mist">
                 {currentFolder
@@ -721,18 +721,23 @@ export default function AdminProjectPage() {
                       alt={img.title}
                       className="h-full w-full object-cover"
                     />
-                    <input
-                      type="checkbox"
-                      checked={selectedImages.has(img.id)}
-                      onChange={() => toggleImage(img.id)}
-                      className="absolute left-2 top-2 h-4 w-4 accent-ember"
-                    />
-                    <div className="absolute inset-0 flex items-center justify-center gap-2 bg-black/50 opacity-0 transition group-hover:opacity-100">
+                    <label
+                      className="absolute left-2 top-2 z-20 flex h-6 w-6 cursor-pointer items-center justify-center rounded bg-black/60"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedImages.has(img.id)}
+                        onChange={() => toggleImage(img.id)}
+                        className="h-4 w-4 cursor-pointer accent-ember"
+                      />
+                    </label>
+                    <div className="pointer-events-none absolute inset-0 flex items-center justify-center gap-2 bg-black/50 opacity-0 transition group-hover:opacity-100">
                       {currentFolder && (
                         <button
                           title="Remove from folder"
                           onClick={() => onRemoveImageFromFolder(img.id)}
-                          className="flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-bone transition hover:text-white"
+                          className="pointer-events-auto flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-bone transition hover:text-white"
                         >
                           <ArrowLeft className="h-4 w-4" />
                         </button>
@@ -740,7 +745,7 @@ export default function AdminProjectPage() {
                       <button
                         title="Delete"
                         onClick={() => onDeleteImage(img.id)}
-                        className="flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-bone transition hover:text-ember"
+                        className="pointer-events-auto flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-bone transition hover:text-ember"
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>
@@ -753,7 +758,6 @@ export default function AdminProjectPage() {
         </section>
       </div>
 
-      {/* Saját prompt dialógus */}
       {prompt && (
         <PromptDialog
           title={prompt.title}
@@ -767,7 +771,6 @@ export default function AdminProjectPage() {
         />
       )}
 
-      {/* Saját confirm dialógus */}
       {confirmDialog && (
         <ConfirmDialog
           message={confirmDialog.message}
