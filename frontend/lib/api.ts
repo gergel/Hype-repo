@@ -55,6 +55,7 @@ export interface ProjectSummary {
   status: string;
   brand: string;
   project_date: string;
+  expires_at: string | null;
   has_password: boolean;
 }
 
@@ -90,9 +91,15 @@ async function req<T>(path: string, opts: RequestInit = {}): Promise<T> {
 // ---- Public ----
 export async function getPublicProject(slug: string, token?: string) {
   const q = token ? `?authorization=${encodeURIComponent(token)}` : "";
-  return req<{ locked: boolean; project?: PublicProject; title?: string; cover_image_url?: string }>(
-    `/public/projects/${slug}${q}`
-  );
+  return req<{
+    locked: boolean;
+    expired?: boolean;
+    project?: PublicProject;
+    title?: string;
+    cover_image_url?: string;
+    brand?: string;
+    contact_email?: string;
+  }>(`/public/projects/${slug}${q}`);
 }
 
 export async function unlockProject(slug: string, password: string) {
