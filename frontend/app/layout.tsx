@@ -12,8 +12,8 @@ const sans = Inter({ subsets: ["latin"], variable: "--font-sans" });
 const mono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-mono" });
 
 export const metadata: Metadata = {
-  title: "HYPE Production — Client Portal",
-  description: "Private screening room for HYPE Production clients.",
+  title: "HYPE Productions — Client Cloud",
+  description: "Private screening room for HYPE Productions clients.",
 };
 
 export default function RootLayout({
