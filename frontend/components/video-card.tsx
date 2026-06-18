@@ -4,7 +4,6 @@ import { motion } from "framer-motion";
 import { Play, Download, Loader2 } from "lucide-react";
 import { Video } from "@/lib/api";
 import { formatDuration, downloadVideo } from "@/lib/utils";
-
 export function VideoCard({
   video,
   index,
@@ -15,7 +14,6 @@ export function VideoCard({
   onPlay: (v: Video) => void;
 }) {
   const [preparing, setPreparing] = useState(false);
-
   async function handleDownload(e: React.MouseEvent) {
     e.stopPropagation();
     if (preparing) return;
@@ -26,7 +24,6 @@ export function VideoCard({
       setTimeout(() => setPreparing(false), 1200);
     }
   }
-
   return (
     <motion.article
       initial={{ opacity: 0, y: 24 }}
@@ -74,7 +71,7 @@ export function VideoCard({
           onClick={handleDownload}
           disabled={preparing}
           aria-label={`Download ${video.title}`}
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-ink-line text-mist transition hover:border-bone/50 hover:text-bone disabled:opacity-60"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-bone text-ink transition hover:bg-white disabled:opacity-60"
         >
           {preparing ? (
             <Loader2 className="h-4 w-4 animate-spin" />
