@@ -21,6 +21,16 @@ export interface Folder {
   sort_order: number;
 }
 
+export interface Image {
+  id: string;
+  title: string;
+  url: string;
+  width: number;
+  height: number;
+  size_bytes: number;
+  sort_order: number;
+}
+
 export interface PublicProject {
   id: string;
   slug: string;
@@ -32,6 +42,7 @@ export interface PublicProject {
   project_date: string;
   videos: Video[];
   folders: Folder[];
+  images: Image[];
 }
 
 export interface ProjectSummary {
@@ -182,6 +193,31 @@ export async function updateFolder(folderId: string, data: Record<string, unknow
 
 export async function deleteFolder(folderId: string) {
   return req(`/admin/folders/${folderId}`, {
+    method: "DELETE",
+    headers: authHeaders(),
+  });
+}
+
+
+// ---- Images ----
+export async function uploadImage(projectId: string, file: File) {
+  const fd = new FormData();
+  fd.append("file", file);
+  const res = await fetch(`${BASE}/admin/projects/${projectId}/images`, {
+    method: "POST",
+    headers: authHeaders(),
+    body: fd,
+  });
+  if (res.status === 401) {
+    handleUnauthorized();
+    throw new Error("A munkamenet lejárt. Jelentkezz be újra.");
+  }
+  if (!res.ok) throw new Error("Image upload failed");
+  return res.json() as Promise<Image>;
+}
+
+export async function deleteImage(imageId: string) {
+  return req(`/admin/images/${imageId}`, {
     method: "DELETE",
     headers: authHeaders(),
   });
