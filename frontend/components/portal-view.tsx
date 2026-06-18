@@ -60,7 +60,7 @@ export function PortalView({ project }: { project: PublicProject }) {
             transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
             className="font-mono text-xs uppercase tracking-eyebrow text-mist"
           >
-            HYPE Production · {project.client_name || "Client"}
+            HYPE Productions · {project.client_name || "Client"}
             {project.project_date ? ` · ${project.project_date}` : ""}
           </motion.p>
 
