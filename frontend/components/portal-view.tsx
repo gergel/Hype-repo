@@ -429,7 +429,7 @@ function DownloadAllButton({ videos }: { videos: Video[] }) {
     try {
       for (const v of videos) {
         if (!v.mp4_url) continue;
-        await downloadVideo(v.id, v.mp4_url, `${v.title}.mp4`, v.size_bytes);
+        await downloadImagesAll(images.map((i) => ({ id: i.id, title: i.title })));
         await new Promise((r) => setTimeout(r, 800));
       }
     } finally {
@@ -458,7 +458,7 @@ function ImagesDownloadButton({
     if (busy) return;
     setBusy(true);
     try {
-      await downloadImagesAll(images.map((i) => i.id));
+      await downloadImage(image.id, image.title);
     } finally {
       setBusy(false);
     }
