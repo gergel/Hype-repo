@@ -127,34 +127,44 @@ export async function downloadImage(imageId: string, title?: string) {
 }
 
 // Több kép: telón egyenként galériába (Web Share), gépen egy ZIP
+// Több kép: telón egyenként galériába (Web Share), gépen egy ZIP (gyors)
 export async function downloadImagesAll(
   images: { id: string; title: string }[]
 ) {
   if (isMobileDevice()) {
-    // Telón: egyenként galériába a Web Share-rel
     for (const img of images) {
       await downloadImage(img.id, img.title);
     }
     return;
   }
 
-  // Gépen: ZIP a presigned URL-ekből
+  // Gépen: ZIP — párhuzamos letöltés, tömörítés nélkül (gyors)
   const zip = new JSZip();
-  let index = 1;
-  for (const img of images) {
-    try {
-      const url = await getImageDownloadUrl(img.id);
-      const res = await fetch(url, { mode: "cors" });
-      const blob = await res.blob();
-      const ext = (blob.type.split("/")[1] || "jpg").split("+")[0];
-      const safeTitle = (img.title || `image-${index}`).replace(/[^\w.-]+/g, "_");
-      zip.file(`${safeTitle}.${ext}`, blob);
-    } catch {
-      // kihagyjuk a hibásat
-    }
-    index++;
+
+  // 1) Minden kép letöltése PÁRHUZAMOSAN
+  const blobs = await Promise.all(
+    images.map(async (img, i) => {
+      try {
+        const url = await getImageDownloadUrl(img.id);
+        const res = await fetch(url, { mode: "cors" });
+        const blob = await res.blob();
+        return { blob, title: img.title, index: i + 1 };
+      } catch {
+        return null;
+      }
+    })
+  );
+
+  // 2) Hozzáadás a ZIP-hez tömörítés nélkül (STORE)
+  for (const item of blobs) {
+    if (!item) continue;
+    const ext = (item.blob.type.split("/")[1] || "jpg").split("+")[0];
+    const safeTitle = (item.title || `image-${item.index}`).replace(/[^\w.-]+/g, "_");
+    zip.file(`${safeTitle}.${ext}`, item.blob, { compression: "STORE" });
   }
-  const content = await zip.generateAsync({ type: "blob" });
+
+  // 3) ZIP generálás tömörítés nélkül
+  const content = await zip.generateAsync({ type: "blob", compression: "STORE" });
   const blobUrl = URL.createObjectURL(content);
   const a = document.createElement("a");
   a.href = blobUrl;
