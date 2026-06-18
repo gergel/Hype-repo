@@ -6,7 +6,7 @@ import { PublicProject, Video, Image as ImageType } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { VideoCard } from "@/components/video-card";
 import { VideoPlayer } from "@/components/video-player";
-import { downloadVideo, downloadImage, downloadImagesZip } from "@/lib/utils";
+import { downloadVideo, downloadImage, downloadImagesAll } from "@/lib/utils";
 
 const CONTENTBEE_ACCENT = "rgb(243, 199, 68)";
 
@@ -124,6 +124,14 @@ export function PortalView({ project }: { project: PublicProject }) {
                 <ArrowDown className="h-4 w-4" />
               </a>
             </Button>
+            {allImages.length > 0 && (
+              <Button variant="ghost" size="lg" asChild>
+                <a href="#images">
+                  {allImages.length} {allImages.length === 1 ? "photo" : "photos"}
+                  <ArrowDown className="h-4 w-4" />
+                </a>
+              </Button>
+            )}
           </motion.div>
         </div>
       </section>
@@ -447,14 +455,11 @@ function ImagesDownloadButton({
 }) {
   const [busy, setBusy] = useState(false);
 
-  async function handleZip() {
+  async function handleDownload() {
     if (busy) return;
     setBusy(true);
     try {
-      await downloadImagesZip(
-        images.map((i) => ({ url: i.url, title: i.title })),
-        "photos.zip"
-      );
+      await downloadImagesAll(images.map((i) => ({ url: i.url, title: i.title })));
     } finally {
       setBusy(false);
     }
@@ -462,7 +467,7 @@ function ImagesDownloadButton({
 
   return (
     <button
-      onClick={handleZip}
+      onClick={handleDownload}
       disabled={busy}
       className="flex shrink-0 items-center gap-2 whitespace-nowrap rounded-full bg-bone px-5 py-2.5 text-sm font-medium text-ink transition hover:bg-white disabled:opacity-60"
     >
