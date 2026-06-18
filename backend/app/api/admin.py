@@ -10,7 +10,7 @@ from slugify import slugify
 from app.core.config import settings
 from app.core.database import get_db
 from app.core.security import require_admin, hash_password
-from app.models import Project, Video
+from app.models import Project, Video, Folder
 from app.schemas import (
     ProjectCreate,
     ProjectUpdate,
@@ -20,6 +20,9 @@ from app.schemas import (
     VideoUpdate,
     ReorderPayload,
     ShareLink,
+    FolderOut,
+    FolderCreate,
+    FolderUpdate,
 )
 from app.services import storage, notion as notion_service
 from app.workers.tasks import process_video_task
@@ -377,6 +380,57 @@ def reorder_videos(
         video = db.query(Video).get(vid)
         if video and video.project_id == project_id:
             video.sort_order = index
+    db.commit()
+    return {"ok": True}
+
+
+
+# ---------------- Folders ----------------
+@router.post("/projects/{project_id}/folders", response_model=FolderOut)
+def create_folder(
+    project_id: str,
+    payload: FolderCreate,
+    db: Session = Depends(get_db),
+    _: str = Depends(require_admin),
+):
+    project = db.query(Project).get(project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    max_order = max([f.sort_order for f in project.folders], default=-1)
+    folder = Folder(project_id=project_id, name=payload.name, sort_order=max_order + 1)
+    db.add(folder)
+    db.commit()
+    db.refresh(folder)
+    return FolderOut.model_validate(folder)
+
+
+@router.patch("/folders/{folder_id}", response_model=FolderOut)
+def update_folder(
+    folder_id: str,
+    payload: FolderUpdate,
+    db: Session = Depends(get_db),
+    _: str = Depends(require_admin),
+):
+    folder = db.query(Folder).get(folder_id)
+    if not folder:
+        raise HTTPException(status_code=404, detail="Not found")
+    for k, v in payload.model_dump(exclude_unset=True).items():
+        setattr(folder, k, v)
+    db.commit()
+    return FolderOut.model_validate(folder)
+
+
+@router.delete("/folders/{folder_id}")
+def delete_folder(
+    folder_id: str, db: Session = Depends(get_db), _: str = Depends(require_admin)
+):
+    folder = db.query(Folder).get(folder_id)
+    if not folder:
+        raise HTTPException(status_code=404, detail="Not found")
+    # a benne lévő videók mappa nélkülivé válnak (nem törlődnek)
+    for v in folder.videos:
+        v.folder_id = None
+    db.delete(folder)
     db.commit()
     return {"ok": True}
 
