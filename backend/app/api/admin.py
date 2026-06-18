@@ -459,7 +459,7 @@ async def upload_image(
     data = await file.read()
     ext = (file.filename or "image.jpg").split(".")[-1].lower()
     key = f"images/{image.id}/original.{ext}"
-    storage.upload_bytes(key, data, file.content_type or "image/jpeg")
+    storage.upload_bytes(data, key, file.content_type or "image/jpeg")
     max_order = max([i.sort_order for i in project.images], default=-1)
     image.title = (file.filename or "").rsplit(".", 1)[0]
     image.url = storage.public_url(key)
