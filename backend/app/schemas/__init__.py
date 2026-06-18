@@ -18,6 +18,7 @@ class VideoOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: str
     title: str
+    folder_id: Optional[str] = None
     mp4_url: str
     hls_url: str
     thumbnail_url: str
@@ -33,6 +34,24 @@ class VideoOut(BaseModel):
 
 class VideoUpdate(BaseModel):
     title: Optional[str] = None
+    sort_order: Optional[int] = None
+    folder_id: Optional[str] = None
+
+
+# ---------- Folder ----------
+class FolderOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: str
+    name: str
+    sort_order: int
+
+
+class FolderCreate(BaseModel):
+    name: str
+
+
+class FolderUpdate(BaseModel):
+    name: Optional[str] = None
     sort_order: Optional[int] = None
 
 
@@ -78,6 +97,7 @@ class ProjectDetail(ProjectSummary):
     description: str
     share_token: str
     videos: List[VideoOut] = []
+    folders: List[FolderOut] = []
 
 
 class PublicProject(BaseModel):
@@ -89,6 +109,7 @@ class PublicProject(BaseModel):
     cover_image_url: str
     project_date: str = ""
     videos: List[VideoOut] = []
+    folders: List[FolderOut] = []
 
 
 class ReorderPayload(BaseModel):
