@@ -140,7 +140,7 @@ export function PortalView({ project }: { project: PublicProject }) {
 
       <footer className="mx-auto max-w-6xl px-6 pb-16 pt-4">
         <p className="font-mono text-xs uppercase tracking-eyebrow text-mist">
-          © {new Date().getFullYear()} HYPE Production — Private delivery
+          © {new Date().getFullYear()} HYPE Productions — Private delivery
         </p>
       </footer>
 
