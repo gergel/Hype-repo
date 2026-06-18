@@ -117,7 +117,7 @@ export function PortalView({ project }: { project: PublicProject }) {
             transition={{ duration: 0.8, delay: 0.24, ease: [0.16, 1, 0.3, 1] }}
             className="mt-9 flex flex-wrap items-center gap-3"
           >
-            <DownloadAllButton videos={project.videos} />
+            <DownloadAllButton videos={project.videos} images={allImages} />
             <Button variant="ghost" size="lg" asChild>
               <a href="#films">
                 {project.videos.length} {project.videos.length === 1 ? "film" : "films"}
