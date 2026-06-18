@@ -21,7 +21,7 @@ export function VideoCard({
     if (preparing) return;
     setPreparing(true);
     try {
-      await downloadVideo(video.id, video.mp4_url, `${video.title}.mp4`);
+      await downloadVideo(video.id, video.mp4_url, `${video.title}.mp4`, video.size_bytes);
     } finally {
       setTimeout(() => setPreparing(false), 1200);
     }
