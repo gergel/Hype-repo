@@ -42,7 +42,7 @@ function Login({ onIn }: { onIn: () => void }) {
         className="w-full max-w-sm rounded-3xl border border-ink-line bg-ink-card p-8"
       >
         <p className="font-mono text-xs uppercase tracking-eyebrow text-mist">
-          HYPE Production
+          HYPE Productions
         </p>
         <h1 className="mt-2 font-display text-2xl text-bone">Admin sign in</h1>
         <input
