@@ -114,12 +114,19 @@ export function VideoPlayer({
               disabled={preparing}
               className="flex min-w-[140px] shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-full bg-bone px-6 py-3 text-sm font-medium text-ink transition hover:bg-white disabled:opacity-60"
             >
-              {preparing ? (
-                <Loader2 className="h-5 w-5 animate-spin" />
-              ) : (
-                <Download className="h-5 w-5" />
-              )}
-              {preparing ? "Preparing…" : "Download"}
+              <span className="flex items-center gap-2">
+                {preparing ? (
+                  <>
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                    Preparing…
+                  </>
+                ) : (
+                  <>
+                    <Download className="h-5 w-5" />
+                    Download
+                  </>
+                )}
+              </span>
             </button>
           </div>
         </motion.div>
