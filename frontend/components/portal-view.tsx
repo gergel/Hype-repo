@@ -8,9 +8,20 @@ import { VideoCard } from "@/components/video-card";
 import { VideoPlayer } from "@/components/video-player";
 import { downloadVideo } from "@/lib/utils";
 
+const CONTENTBEE_ACCENT = "rgb(243, 199, 68)";
+
 export function PortalView({ project }: { project: PublicProject }) {
   const [active, setActive] = useState<Video | null>(null);
   const hasCustomCover = !!project.cover_image_url;
+
+  const isContentBee = project.brand === "contentbee";
+  const brandLabel = isContentBee ? "ContentBee" : "HYPE Productions";
+  const defaultCoverMobile = isContentBee
+    ? "/contentbee-mobile.png"
+    : "/default-cover-mobile.PNG";
+  const defaultCoverDesktop = isContentBee
+    ? "/contentbee-desktop.png"
+    : "/default-cover-desktop.png";
 
   const folders = project.folders || [];
   const looseVideos = project.videos.filter((v) => !v.folder_id);
@@ -37,13 +48,13 @@ export function PortalView({ project }: { project: PublicProject }) {
             <>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src="/default-cover-mobile.PNG"
+                src={defaultCoverMobile}
                 alt=""
                 className="h-full w-full origin-center object-cover animate-drift sm:hidden"
               />
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src="/default-cover-desktop.png"
+                src={defaultCoverDesktop}
                 alt=""
                 className="hidden h-full w-full origin-center object-cover animate-drift sm:block"
               />
@@ -58,10 +69,15 @@ export function PortalView({ project }: { project: PublicProject }) {
             initial={{ opacity: 0, y: 14 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
-            className="font-mono text-xs uppercase tracking-eyebrow text-mist"
+            className="font-mono text-xs uppercase tracking-eyebrow"
+            style={{ color: isContentBee ? CONTENTBEE_ACCENT : undefined }}
           >
-            HYPE Productions · {project.client_name || "Client"}
-            {project.project_date ? ` · ${project.project_date}` : ""}
+            {!isContentBee && <span className="text-mist">{brandLabel} · </span>}
+            {isContentBee ? `${brandLabel} · ` : ""}
+            <span className={isContentBee ? "" : "text-mist"}>
+              {project.client_name || "Client"}
+              {project.project_date ? ` · ${project.project_date}` : ""}
+            </span>
           </motion.p>
 
           <motion.h1
@@ -132,6 +148,7 @@ export function PortalView({ project }: { project: PublicProject }) {
                 name={folder.name}
                 videos={videos}
                 onPlay={setActive}
+                accent={isContentBee ? CONTENTBEE_ACCENT : undefined}
               />
             ))}
           </div>
@@ -140,7 +157,7 @@ export function PortalView({ project }: { project: PublicProject }) {
 
       <footer className="mx-auto max-w-6xl px-6 pb-16 pt-4">
         <p className="font-mono text-xs uppercase tracking-eyebrow text-mist">
-          © {new Date().getFullYear()} HYPE Productions — Private delivery
+          © {new Date().getFullYear()} {brandLabel} — Private delivery
         </p>
       </footer>
 
@@ -153,10 +170,12 @@ function FolderSection({
   name,
   videos,
   onPlay,
+  accent,
 }: {
   name: string;
   videos: Video[];
   onPlay: (v: Video) => void;
+  accent?: string;
 }) {
   const [open, setOpen] = useState(true);
 
@@ -166,7 +185,12 @@ function FolderSection({
         onClick={() => setOpen((o) => !o)}
         className="mb-6 flex w-full items-center justify-between border-b border-ink-line pb-3 text-left transition hover:border-ember/40"
       >
-        <h3 className="font-display text-xl text-bone sm:text-2xl">{name}</h3>
+        <h3
+          className="font-display text-xl text-bone sm:text-2xl"
+          style={accent ? { color: accent } : undefined}
+        >
+          {name}
+        </h3>
         <span className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-eyebrow text-mist">
           {videos.length} {videos.length === 1 ? "film" : "films"}
           <ChevronDown
