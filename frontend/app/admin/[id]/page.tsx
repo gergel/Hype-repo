@@ -98,7 +98,7 @@ export default function AdminProjectPage() {
       cover_image_url: d.cover_image_url,
       slug: d.slug,
       brand: (d as never)["brand"] || "hype",
-      expires_at: ((d as never)["expires_at"] || "").slice(0, 10),
+      expires_at: String((d as any)["expires_at"] || "").slice(0, 10),
     }));
   }
   useEffect(() => {
