@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
@@ -12,6 +14,23 @@ from app.schemas import PublicProject, ProjectUnlock, VideoOut, FolderOut, Image
 from app.services import storage
 
 router = APIRouter(prefix="/api/public", tags=["public"])
+
+
+# Lejárati e-mail márka szerint
+def _contact_email(project: Project) -> str:
+    if project.brand == "contentbee":
+        return "hype.stab@gmail.com"
+    return "info@hypestab.hu"
+
+
+def _is_expired(project: Project) -> bool:
+    if not project.expires_at:
+        return False
+    exp = project.expires_at
+    # ha naiv a datetime, vegyük UTC-nek
+    if exp.tzinfo is None:
+        exp = exp.replace(tzinfo=timezone.utc)
+    return datetime.now(timezone.utc) >= exp
 
 
 def _serialize(project: Project) -> PublicProject:
@@ -30,6 +49,7 @@ def _serialize(project: Project) -> PublicProject:
         images=[ImageOut.model_validate(i) for i in project.images],
     )
 
+
 @router.get("/projects/{slug}")
 def get_public_project(
     slug: str,
@@ -44,8 +64,16 @@ def get_public_project(
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
+    # Lejárt? → anyagok elrejtve, kapcsolati üzenet
+    if _is_expired(project):
+        return {
+            "expired": True,
+            "title": project.title,
+            "brand": project.brand,
+            "contact_email": _contact_email(project),
+        }
+
     if project.password_hash:
-        # Caller must pass a project-scoped token (see /unlock) via ?authorization=
         if not authorization:
             return {"locked": True, "title": project.title,
                     "cover_image_url": project.cover_image_url}
@@ -69,6 +97,7 @@ def public_video_download(video_id: str, db: Session = Depends(get_db)):
     url = storage.presigned_download(video.source_key, f"{safe}.mp4")
     return {"url": url}
 
+
 @router.get("/images/{image_id}/download")
 def image_download(image_id: str, db: Session = Depends(get_db)):
     image = db.query(Image).get(image_id)
@@ -85,6 +114,8 @@ def unlock(slug: str, payload: ProjectUnlock, db: Session = Depends(get_db)):
     project = db.query(Project).filter(Project.slug == slug).first()
     if not project or not project.password_hash:
         raise HTTPException(status_code=404, detail="Not found")
+    if _is_expired(project):
+        raise HTTPException(status_code=410, detail="Expired")
     if not verify_password(payload.password, project.password_hash):
         raise HTTPException(status_code=401, detail="Wrong password")
     token = create_access_token(
@@ -98,6 +129,11 @@ def get_by_share(token: str, db: Session = Depends(get_db)):
     project = db.query(Project).filter(Project.share_token == token).first()
     if not project:
         raise HTTPException(status_code=404, detail="Not found")
+    if _is_expired(project):
+        return {
+            "expired": True,
+            "title": project.title,
+            "brand": project.brand,
+            "contact_email": _contact_email(project),
+        }
     return {"locked": False, "project": _serialize(project).model_dump()}
-
-
