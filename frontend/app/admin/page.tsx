@@ -1,12 +1,13 @@
 "use client";
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { RefreshCw, Plus, ExternalLink } from "lucide-react";
+import { RefreshCw, Plus, ExternalLink, Trash2 } from "lucide-react";
 import {
   adminLogin,
   listProjects,
   createProject,
   syncNotion,
+  deleteProject,
   ProjectSummary,
 } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -102,6 +103,17 @@ function Dashboard() {
     refresh();
   }
 
+  async function onDelete(e: React.MouseEvent, id: string, title: string) {
+    e.preventDefault();
+    e.stopPropagation();
+    const ok = window.confirm(
+      `Biztosan törlöd a(z) "${title}" projektet az összes videójával együtt? Ez nem vonható vissza.`
+    );
+    if (!ok) return;
+    await deleteProject(id);
+    refresh();
+  }
+
   const visibleProjects = projects
     .filter((p) => {
       const q = search.toLowerCase();
@@ -188,7 +200,7 @@ function Dashboard() {
         )}
         {visibleProjects.map((p) => (
           
-             <a key={p.id}
+            key={p.id}
             href={`/admin/${p.id}`}
             className="flex items-center gap-4 bg-ink-card px-5 py-4 transition hover:bg-white/[0.03]"
           >
@@ -214,6 +226,13 @@ function Dashboard() {
               </span>
             )}
             <ExternalLink className="h-4 w-4 text-mist" />
+            <button
+              onClick={(e) => onDelete(e, p.id, p.title)}
+              title="Projekt törlése"
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-mist transition hover:bg-ember/10 hover:text-ember"
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
           </a>
         ))}
       </div>
