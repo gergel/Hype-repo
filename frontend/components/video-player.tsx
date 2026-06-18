@@ -1,10 +1,10 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import Hls from "hls.js";
-import { X } from "lucide-react";
+import { X, Download, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Video } from "@/lib/api";
-
+import { downloadVideo } from "@/lib/utils";
 export function VideoPlayer({
   video,
   onClose,
@@ -14,14 +14,23 @@ export function VideoPlayer({
 }) {
   const ref = useRef<HTMLVideoElement>(null);
   const [error, setError] = useState(false);
+  const [preparing, setPreparing] = useState(false);
+
+  async function handleDownload() {
+    if (preparing) return;
+    setPreparing(true);
+    try {
+      await downloadVideo(video.id, video.mp4_url, `${video.title}.mp4`, video.size_bytes);
+    } finally {
+      setTimeout(() => setPreparing(false), 1200);
+    }
+  }
 
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
     let hls: Hls | null = null;
-
     const hasHls = !!video.hls_url;
-
     if (hasHls && el.canPlayType("application/vnd.apple.mpegurl")) {
       // Safari / iOS natív HLS
       el.src = video.hls_url;
@@ -46,19 +55,16 @@ export function VideoPlayer({
     } else {
       setError(true);
     }
-
     el.play().catch(() => {});
     return () => {
       hls?.destroy();
     };
   }, [video]);
-
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
-
   return (
     <AnimatePresence>
       <motion.div
@@ -96,11 +102,25 @@ export function VideoPlayer({
               className="aspect-video w-full bg-black"
             />
           )}
-          <div className="flex items-center justify-between gap-4 px-5 py-4">
-            <h3 className="font-display text-lg text-bone">{video.title}</h3>
-            <span className="font-mono text-xs uppercase tracking-eyebrow text-mist">
-              {video.resolution_label}
-            </span>
+          <div className="flex flex-wrap items-center justify-between gap-4 px-5 py-4">
+            <div className="min-w-0">
+              <h3 className="truncate font-display text-lg text-bone">{video.title}</h3>
+              <span className="font-mono text-xs uppercase tracking-eyebrow text-mist">
+                {video.resolution_label}
+              </span>
+            </div>
+            <button
+              onClick={handleDownload}
+              disabled={preparing}
+              className="flex items-center gap-2 rounded-full bg-bone px-6 py-3 text-sm font-medium text-ink transition hover:bg-white disabled:opacity-60"
+            >
+              {preparing ? (
+                <Loader2 className="h-5 w-5 animate-spin" />
+              ) : (
+                <Download className="h-5 w-5" />
+              )}
+              {preparing ? "Preparing…" : "Download"}
+            </button>
           </div>
         </motion.div>
       </motion.div>
