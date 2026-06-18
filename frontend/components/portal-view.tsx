@@ -135,7 +135,7 @@ function DownloadAllButton({ videos }: { videos: Video[] }) {
       // egyenként, sorban — minden videó az új letöltési móddal
       for (const v of videos) {
         if (!v.mp4_url) continue;
-        await downloadVideo(v.id, v.mp4_url, `${v.title}.mp4`);
+        await downloadVideo(v.id, v.mp4_url, `${v.title}.mp4`, v.size_bytes);
         // kis szünet a böngésző letöltéskezelőjének
         await new Promise((r) => setTimeout(r, 800));
       }
