@@ -40,6 +40,7 @@ class Project(Base):
     project_date = Column(String, default="")  # pl. "2026-06-17" vagy "2026. június"
     cover_image_url = Column(String, default="")
     status = Column(String, default="draft")  # draft | live | archived
+    brand = Column(String, default="hype")  # hype | contentbee
     password_hash = Column(String, nullable=True)  # null = no password
     share_token = Column(String, default=_uuid, index=True)
     notion_page_id = Column(String, nullable=True, index=True)
