@@ -86,3 +86,73 @@ export async function downloadVideo(
     window.open(mp4Url, "_blank");
   }
 }
+
+
+import JSZip from "jszip";
+
+// Egy kép letöltése (telón galériába a Web Share-rel, ha lehet)
+export async function downloadImage(url: string, filename: string) {
+  try {
+    const res = await fetch(url);
+    const blob = await res.blob();
+    const file = new File([blob], filename, { type: blob.type });
+
+    // Mobil: Web Share API → galériába mentés
+    const nav = navigator as Navigator & {
+      canShare?: (data: { files: File[] }) => boolean;
+      share?: (data: { files: File[] }) => Promise<void>;
+    };
+    if (nav.canShare && nav.canShare({ files: [file] }) && nav.share) {
+      await nav.share({ files: [file] });
+      return;
+    }
+
+    // Egyébként sima letöltés
+    const blobUrl = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = blobUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 2000);
+  } catch {
+    // ha a fetch elhasal (pl. CORS), nyissuk meg új lapon
+    window.open(url, "_blank");
+  }
+}
+
+// Több kép letöltése egy ZIP-be csomagolva
+export async function downloadImagesZip(
+  images: { url: string; title: string }[],
+  zipName = "images.zip"
+) {
+  const zip = new JSZip();
+  let index = 1;
+  for (const img of images) {
+    try {
+      const res = await fetch(img.url);
+      const blob = await res.blob();
+      // kiterjesztés az URL-ből vagy a MIME típusból
+      const extFromUrl = img.url.split("?")[0].split(".").pop() || "";
+      const ext =
+        extFromUrl.length <= 4
+          ? extFromUrl
+          : (blob.type.split("/")[1] || "jpg");
+      const safeTitle = (img.title || `image-${index}`).replace(/[^\w.-]+/g, "_");
+      zip.file(`${safeTitle}.${ext}`, blob);
+    } catch {
+      // ha egy kép nem tölthető, kihagyjuk
+    }
+    index++;
+  }
+  const content = await zip.generateAsync({ type: "blob" });
+  const blobUrl = URL.createObjectURL(content);
+  const a = document.createElement("a");
+  a.href = blobUrl;
+  a.download = zipName;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(blobUrl), 2000);
+}
