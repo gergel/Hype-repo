@@ -366,8 +366,7 @@ function ImageLightbox({
     if (preparing) return;
     setPreparing(true);
     try {
-      const ext = image.url.split("?")[0].split(".").pop() || "jpg";
-      await downloadImage(image.url, `${image.title || "image"}.${ext}`);
+      await downloadImage(image.id);
     } finally {
       setTimeout(() => setPreparing(false), 1000);
     }
@@ -459,7 +458,7 @@ function ImagesDownloadButton({
     if (busy) return;
     setBusy(true);
     try {
-      await downloadImagesAll(images.map((i) => ({ url: i.url, title: i.title })));
+      await downloadImagesAll(images.map((i) => i.id));
     } finally {
       setBusy(false);
     }
