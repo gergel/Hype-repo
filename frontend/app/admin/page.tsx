@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { Plus, ExternalLink, Trash2 } from "lucide-react";
+import { Plus, ExternalLink, Trash2, LogOut } from "lucide-react";
 import {
   adminLogin,
   listProjects,
@@ -16,7 +16,11 @@ export default function AdminPage() {
   useEffect(() => {
     setAuthed(!!localStorage.getItem("hype_admin_token"));
   }, []);
-  return authed ? <Dashboard /> : <Login onIn={() => setAuthed(true)} />;
+  return authed ? (
+    <Dashboard onLogout={() => setAuthed(false)} />
+  ) : (
+    <Login onIn={() => setAuthed(true)} />
+  );
 }
 
 function Login({ onIn }: { onIn: () => void }) {
@@ -67,7 +71,7 @@ function Login({ onIn }: { onIn: () => void }) {
   );
 }
 
-function Dashboard() {
+function Dashboard({ onLogout }: { onLogout: () => void }) {
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
   const [creating, setCreating] = useState(false);
   const [title, setTitle] = useState("");
@@ -92,6 +96,11 @@ function Dashboard() {
     setClient("");
     setCreating(false);
     refresh();
+  }
+
+  function logout() {
+    localStorage.removeItem("hype_admin_token");
+    onLogout();
   }
 
   function onDelete(e: React.MouseEvent, id: string, title: string) {
@@ -137,6 +146,10 @@ function Dashboard() {
           <Button variant="ember" onClick={() => setCreating((v) => !v)}>
             <Plus className="h-4 w-4" />
             New project
+          </Button>
+          <Button variant="ghost" onClick={logout}>
+            <LogOut className="h-4 w-4" />
+            Sign out
           </Button>
         </div>
       </div>
@@ -189,7 +202,7 @@ function Dashboard() {
         )}
         {visibleProjects.map((p) => (
           
-            <a key={p.id}
+            key={p.id}
             href={`/admin/${p.id}`}
             className="flex items-center gap-4 bg-ink-card px-5 py-4 transition hover:bg-white/[0.03]"
           >
