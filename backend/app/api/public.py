@@ -23,6 +23,7 @@ def _serialize(project: Project) -> PublicProject:
         client_name=project.client_name,
         description=project.description,
         cover_image_url=project.cover_image_url,
+        brand=project.brand,
         project_date=project.project_date,
         videos=[VideoOut.model_validate(v) for v in ready],
         folders=[FolderOut.model_validate(f) for f in project.folders],
