@@ -3,6 +3,7 @@ import tempfile
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from datetime import datetime, timezone, timedelta
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from slugify import slugify
@@ -87,6 +88,7 @@ def create_project(
         cover_image_url=payload.cover_image_url,
         status=payload.status,
         password_hash=hash_password(payload.password) if payload.password else None,
+        expires_at=datetime.now(timezone.utc) + timedelta(days=180),
     )
     db.add(project)
     db.commit()
