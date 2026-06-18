@@ -118,12 +118,14 @@ export function PortalView({ project }: { project: PublicProject }) {
             className="mt-9 flex flex-wrap items-center gap-3"
           >
             <DownloadAllButton videos={project.videos} images={allImages} />
-            <Button variant="ghost" size="lg" asChild>
-              <a href="#films">
-                {project.videos.length} {project.videos.length === 1 ? "film" : "films"}
-                <ArrowDown className="h-4 w-4" />
-              </a>
-            </Button>
+            {project.videos.length > 0 && (
+              <Button variant="ghost" size="lg" asChild>
+                <a href="#films">
+                  {project.videos.length} {project.videos.length === 1 ? "film" : "films"}
+                  <ArrowDown className="h-4 w-4" />
+                </a>
+              </Button>
+            )}
             {allImages.length > 0 && (
               <Button variant="ghost" size="lg" asChild>
                 <a href="#images">
@@ -136,20 +138,17 @@ export function PortalView({ project }: { project: PublicProject }) {
         </div>
       </section>
 
+      
       {/* ---------- Films ---------- */}
-      <section id="films" className="mx-auto max-w-6xl px-6 py-20 sm:py-28">
-        <div className="mb-10 flex items-end justify-between border-b border-ink-line pb-6">
-          <h2 className="font-display text-2xl text-bone sm:text-3xl">The films</h2>
-          <span className="font-mono text-xs uppercase tracking-eyebrow text-mist">
-            Stream · Download
-          </span>
-        </div>
+      {project.videos.length > 0 && (
+        <section id="films" className="mx-auto max-w-6xl px-6 py-20 sm:py-28">
+          <div className="mb-10 flex items-end justify-between border-b border-ink-line pb-6">
+            <h2 className="font-display text-2xl text-bone sm:text-3xl">The films</h2>
+            <span className="font-mono text-xs uppercase tracking-eyebrow text-mist">
+              Stream · Download
+            </span>
+          </div>
 
-        {project.videos.length === 0 ? (
-          <p className="py-16 text-center text-mist">
-            Films are being prepared. Check back shortly.
-          </p>
-        ) : (
           <div className="space-y-12">
             {looseVideos.length > 0 && (
               <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -169,8 +168,8 @@ export function PortalView({ project }: { project: PublicProject }) {
               />
             ))}
           </div>
-        )}
-      </section>
+        </section>
+      )}
 
       {/* ---------- Images ---------- */}
       {allImages.length > 0 && (
