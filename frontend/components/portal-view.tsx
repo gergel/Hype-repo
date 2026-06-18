@@ -1,8 +1,8 @@
 "use client";
 import { useState } from "react";
-import { motion } from "framer-motion";
-import { Download, ArrowDown, Loader2 } from "lucide-react";
-import { PublicProject, Video, Folder } from "@/lib/api";
+import { motion, AnimatePresence } from "framer-motion";
+import { Download, ArrowDown, Loader2, ChevronDown } from "lucide-react";
+import { PublicProject, Video } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { VideoCard } from "@/components/video-card";
 import { VideoPlayer } from "@/components/video-player";
@@ -13,9 +13,7 @@ export function PortalView({ project }: { project: PublicProject }) {
   const hasCustomCover = !!project.cover_image_url;
 
   const folders = project.folders || [];
-  // Mappa nélküli videók (folder_id üres/null)
   const looseVideos = project.videos.filter((v) => !v.folder_id);
-  // Csak azok a mappák, amikben van videó
   const foldersWithVideos = folders
     .map((f) => ({
       folder: f,
@@ -117,7 +115,7 @@ export function PortalView({ project }: { project: PublicProject }) {
             Films are being prepared. Check back shortly.
           </p>
         ) : (
-          <div className="space-y-16">
+          <div className="space-y-12">
             {/* Mappa nélküli videók (cím nélkül, legfelül) */}
             {looseVideos.length > 0 && (
               <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -127,18 +125,14 @@ export function PortalView({ project }: { project: PublicProject }) {
               </div>
             )}
 
-            {/* Mappánkénti szekciók */}
+            {/* Mappánkénti, összecsukható szekciók */}
             {foldersWithVideos.map(({ folder, videos }) => (
-              <div key={folder.id}>
-                <h3 className="mb-6 font-display text-xl text-bone sm:text-2xl">
-                  {folder.name}
-                </h3>
-                <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                  {videos.map((v, i) => (
-                    <VideoCard key={v.id} video={v} index={i} onPlay={setActive} />
-                  ))}
-                </div>
-              </div>
+              <FolderSection
+                key={folder.id}
+                name={folder.name}
+                videos={videos}
+                onPlay={setActive}
+              />
             ))}
           </div>
         )}
@@ -155,6 +149,55 @@ export function PortalView({ project }: { project: PublicProject }) {
   );
 }
 
+function FolderSection({
+  name,
+  videos,
+  onPlay,
+}: {
+  name: string;
+  videos: Video[];
+  onPlay: (v: Video) => void;
+}) {
+  const [open, setOpen] = useState(true);
+
+  return (
+    <div>
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="mb-6 flex w-full items-center justify-between border-b border-ink-line pb-3 text-left transition hover:border-ember/40"
+      >
+        <h3 className="font-display text-xl text-bone sm:text-2xl">{name}</h3>
+        <span className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-eyebrow text-mist">
+          {videos.length} {videos.length === 1 ? "film" : "films"}
+          <ChevronDown
+            className={`h-4 w-4 transition-transform duration-300 ${
+              open ? "rotate-180" : ""
+            }`}
+          />
+        </span>
+      </button>
+
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+            className="overflow-hidden"
+          >
+            <div className="grid grid-cols-1 gap-6 pb-2 sm:grid-cols-2 lg:grid-cols-3">
+              {videos.map((v, i) => (
+                <VideoCard key={v.id} video={v} index={i} onPlay={onPlay} />
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 function DownloadAllButton({ videos }: { videos: Video[] }) {
   const [busy, setBusy] = useState(false);
 
@@ -162,11 +205,9 @@ function DownloadAllButton({ videos }: { videos: Video[] }) {
     if (busy) return;
     setBusy(true);
     try {
-      // egyenként, sorban — minden videó az új letöltési móddal
       for (const v of videos) {
         if (!v.mp4_url) continue;
         await downloadVideo(v.id, v.mp4_url, `${v.title}.mp4`, v.size_bytes);
-        // kis szünet a böngésző letöltéskezelőjének
         await new Promise((r) => setTimeout(r, 800));
       }
     } finally {
