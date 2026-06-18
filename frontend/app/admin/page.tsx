@@ -107,7 +107,7 @@ function Dashboard() {
     e.preventDefault();
     e.stopPropagation();
     const ok = window.confirm(
-      `Biztosan törlöd a(z) "${title}" projektet az összes videójával együtt? Ez nem vonható vissza.`
+      `Are you sure you want to delete the project "${title}" along with all of its videos? This action cannot be undone.`
     );
     if (!ok) return;
     await deleteProject(id);
@@ -129,7 +129,7 @@ function Dashboard() {
       const db = b.project_date || "";
       if (sortBy === "date_asc") return da.localeCompare(db);
       return db.localeCompare(da); // date_desc
-    })
+    });
 
   return (
     <main className="mx-auto max-w-5xl px-6 py-16">
