@@ -47,6 +47,7 @@ class Project(Base):
     sort_order = Column(Integer, default=0)
     created_at = Column(DateTime(timezone=True), default=_now)
     updated_at = Column(DateTime(timezone=True), default=_now, onupdate=_now)
+    expires_at = Column(DateTime, nullable=True)
     videos = relationship(
         "Video",
         back_populates="project",
