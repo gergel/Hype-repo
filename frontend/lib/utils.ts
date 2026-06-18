@@ -1,5 +1,6 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { getVideoDownloadUrl } from "@/lib/api";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -24,46 +25,67 @@ export function formatBytes(bytes: number): string {
   return `${n.toFixed(n < 10 ? 1 : 0)} ${units[i]}`;
 }
 
-export async function forceDownload(url: string, filename: string) {
-  // Mobil? (érintőképernyő + canShare fájlokra) → share-lap a galériába mentéshez
+const SHARE_LIMIT = 150 * 1024 * 1024; // 150 MB alatt: blob + mobil megosztás
+
+// Letöltés videó alapján: kis fájl blob (mobil megosztással), nagy fájl közvetlen R2.
+export async function downloadVideo(videoId: string, mp4Url: string, filename: string) {
   const nav = navigator as Navigator & {
     canShare?: (data?: { files?: File[] }) => boolean;
     share?: (data: { files?: File[]; title?: string }) => Promise<void>;
   };
-  const isMobileShare =
+  const canShareFiles =
     typeof navigator !== "undefined" &&
     "canShare" in navigator &&
     typeof nav.share === "function";
 
+  // Méret megnézése (HEAD). Ha nem megy, nagynak vesszük → közvetlen letöltés.
+  let size = 0;
   try {
-    const res = await fetch(url, { mode: "cors" });
-    const blob = await res.blob();
+    const head = await fetch(mp4Url, { method: "HEAD" });
+    size = parseInt(head.headers.get("content-length") || "0", 10);
+  } catch {
+    size = 0;
+  }
 
-    // Telefon: próbáljuk a natív megosztást (innen menthető a galériába)
-    if (isMobileShare) {
-      const file = new File([blob], filename, { type: blob.type || "video/mp4" });
-      if (nav.canShare && nav.canShare({ files: [file] }) && nav.share) {
-        try {
-          await nav.share({ files: [file], title: filename });
-          return;
-        } catch {
-          // megszakította vagy nem ment → essünk a sima letöltésre
+  const isSmall = size > 0 && size < SHARE_LIMIT;
+
+  // Kis fájl: blob letöltés, mobilon megosztás-lap (galériába mentés)
+  if (isSmall) {
+    try {
+      const res = await fetch(mp4Url, { mode: "cors" });
+      const blob = await res.blob();
+
+      if (canShareFiles) {
+        const file = new File([blob], filename, { type: blob.type || "video/mp4" });
+        if (nav.canShare && nav.canShare({ files: [file] }) && nav.share) {
+          try {
+            await nav.share({ files: [file], title: filename });
+            return;
+          } catch {
+            // megszakítva → sima letöltés
+          }
         }
       }
-    }
 
-    // Gép (és fallback): blobból kényszerített letöltés — azonnal a Letöltésekbe,
-    // nem nyit új lapot, cross-origin is megbízhatóan működik
-    const blobUrl = window.URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = blobUrl;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    window.URL.revokeObjectURL(blobUrl);
+      const blobUrl = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(blobUrl);
+      return;
+    } catch {
+      // ha a blob nem ment, essünk át a közvetlen letöltésre
+    }
+  }
+
+  // Nagy fájl (vagy fallback): közvetlen R2 letöltés aláírt URL-lel
+  try {
+    const url = await getVideoDownloadUrl(videoId);
+    window.location.href = url;
   } catch {
-    // végső esetben új lapon megnyitás
-    window.open(url, "_blank");
+    window.open(mp4Url, "_blank");
   }
 }
