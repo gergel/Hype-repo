@@ -129,7 +129,7 @@ function Dashboard() {
       const db = b.project_date || "";
       if (sortBy === "date_asc") return da.localeCompare(db);
       return db.localeCompare(da); // date_desc
-    });
+    })
 
   return (
     <main className="mx-auto max-w-5xl px-6 py-16">
