@@ -54,6 +54,7 @@ export default function AdminProjectPage() {
     slug: "",
     password: "",
     status: "live",
+    brand: "hype",
   });
   const [shareUrl, setShareUrl] = useState("");
   const [saved, setSaved] = useState(false);
@@ -88,6 +89,7 @@ export default function AdminProjectPage() {
       description: d.description,
       cover_image_url: d.cover_image_url,
       slug: d.slug,
+      brand: (d as never)["brand"] || "hype",
     }));
   }
   useEffect(() => {
@@ -327,6 +329,36 @@ export default function AdminProjectPage() {
                 rows={3}
                 className="mt-1.5 w-full rounded-2xl border border-ink-line bg-ink px-4 py-3 text-bone outline-none focus:border-ember/60"
               />
+            </div>
+
+            <div>
+              <label className="font-mono text-[11px] uppercase tracking-eyebrow text-mist">
+                Brand
+              </label>
+              <div className="mt-1.5 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setForm((f) => ({ ...f, brand: "hype" }))}
+                  className={`flex-1 rounded-full border px-4 py-2 text-sm transition ${
+                    form.brand === "hype"
+                      ? "border-ember bg-ember/10 text-bone"
+                      : "border-ink-line text-mist hover:text-bone"
+                  }`}
+                >
+                  HYPE
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setForm((f) => ({ ...f, brand: "contentbee" }))}
+                  className={`flex-1 rounded-full border px-4 py-2 text-sm transition ${
+                    form.brand === "contentbee"
+                      ? "border-ember bg-ember/10 text-bone"
+                      : "border-ink-line text-mist hover:text-bone"
+                  }`}
+                >
+                  ContentBee
+                </button>
+              </div>
             </div>
             <div>
               <div className="flex items-center justify-between">
