@@ -428,10 +428,12 @@ def delete_folder(
     folder = db.query(Folder).get(folder_id)
     if not folder:
         raise HTTPException(status_code=404, detail="Not found")
-    # a benne lévő videók is törlődnek (R2-ből és DB-ből)
     for v in list(folder.videos):
         storage.delete_prefix(f"videos/{v.id}")
         db.delete(v)
+    for img in db.query(Image).filter(Image.folder_id == folder_id).all():
+        storage.delete_prefix(f"images/{img.id}")
+        db.delete(img)
     db.delete(folder)
     db.commit()
     return {"ok": True}
@@ -442,6 +444,7 @@ def delete_folder(
 async def upload_image(
     project_id: str,
     file: UploadFile = File(...),
+    folder_id: str | None = Form(None),
     db: Session = Depends(get_db),
     _: str = Depends(require_admin),
 ):
@@ -449,8 +452,10 @@ async def upload_image(
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
     image = Image(project_id=project_id)
+    if folder_id:
+        image.folder_id = folder_id
     db.add(image)
-    db.flush()  # van id-ja
+    db.flush()
     data = await file.read()
     ext = (file.filename or "image.jpg").split(".")[-1].lower()
     key = f"images/{image.id}/original.{ext}"
@@ -477,6 +482,25 @@ def delete_image(
     db.delete(image)
     db.commit()
     return {"ok": True}
+
+class ImageFolderIn(BaseModel):
+    folder_id: str | None = None
+
+
+@router.patch("/images/{image_id}", response_model=ImageOut)
+def update_image_folder(
+    image_id: str,
+    payload: ImageFolderIn,
+    db: Session = Depends(get_db),
+    _: str = Depends(require_admin),
+):
+    image = db.query(Image).get(image_id)
+    if not image:
+        raise HTTPException(status_code=404, detail="Not found")
+    image.folder_id = payload.folder_id
+    db.commit()
+    db.refresh(image)
+    return ImageOut.model_validate(image)
 
 
 # ---------------- Notion ----------------
