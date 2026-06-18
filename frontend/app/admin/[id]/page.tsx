@@ -62,6 +62,7 @@ export default function AdminProjectPage() {
     password: "",
     status: "live",
     brand: "hype",
+    expires_at: "",
   });
   const [shareUrl, setShareUrl] = useState("");
   const [saved, setSaved] = useState(false);
@@ -97,6 +98,7 @@ export default function AdminProjectPage() {
       cover_image_url: d.cover_image_url,
       slug: d.slug,
       brand: (d as never)["brand"] || "hype",
+      expires_at: ((d as never)["expires_at"] || "").slice(0, 10),
     }));
   }
   useEffect(() => {
@@ -118,6 +120,22 @@ export default function AdminProjectPage() {
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
     refresh();
+  }
+
+
+  async function onChangeExpiry(value: string) {
+    setForm((f) => ({ ...f, expires_at: value }));
+    // value = "YYYY-MM-DD" → ISO a backendnek (a nap végét vesszük)
+    const iso = value ? new Date(value + "T23:59:59").toISOString() : null;
+    await updateProject(id, { expires_at: iso });
+    refresh();
+  }
+
+  function daysLeft(): number | null {
+    if (!form.expires_at) return null;
+    const exp = new Date(form.expires_at + "T23:59:59").getTime();
+    const diff = Math.ceil((exp - Date.now()) / (1000 * 60 * 60 * 24));
+    return diff;
   }
 
   async function clearPassword() {
@@ -438,6 +456,28 @@ export default function AdminProjectPage() {
                   ContentBee
                 </button>
               </div>
+            </div>
+            <div>
+              <label className="font-mono text-[11px] uppercase tracking-eyebrow text-mist">
+                Available until
+              </label>
+              <input
+                type="date"
+                value={form.expires_at}
+                onChange={(e) => onChangeExpiry(e.target.value)}
+                className="mt-1.5 w-full rounded-full border border-ink-line bg-ink px-4 py-2.5 text-bone outline-none focus:border-ember/60"
+              />
+              {form.expires_at && (
+                <p className="mt-1.5 text-xs text-mist">
+                  {(() => {
+                    const d = daysLeft();
+                    if (d === null) return null;
+                    if (d < 0) return "Expired — portal is hidden from clients.";
+                    if (d === 0) return "Expires today.";
+                    return `${d} ${d === 1 ? "day" : "days"} left until the portal hides its content.`;
+                  })()}
+                </p>
+              )}
             </div>
             <div>
               <div className="flex items-center justify-between">
