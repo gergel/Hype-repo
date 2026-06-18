@@ -44,7 +44,6 @@ export default function AdminProjectPage() {
   );
   const [videos, setVideos] = useState<Video[]>([]);
   const [folders, setFolders] = useState<Folder[]>([]);
-  const [newFolder, setNewFolder] = useState("");
   const [currentFolder, setCurrentFolder] = useState<string | null>(null); // null = root
   const [form, setForm] = useState({
     title: "",
@@ -181,10 +180,9 @@ export default function AdminProjectPage() {
 
   // ---- Folders ----
   async function onCreateFolder() {
-    const name = newFolder.trim();
-    if (!name) return;
-    await createFolder(id, name);
-    setNewFolder("");
+    const name = window.prompt("New folder name:");
+    if (!name || !name.trim()) return;
+    await createFolder(id, name.trim());
     refresh();
   }
 
@@ -198,7 +196,7 @@ export default function AdminProjectPage() {
 
   async function onDeleteFolder(folderId: string) {
     const ok = window.confirm(
-      "Delete this folder? The videos inside will remain, they'll just be removed from the folder."
+      "Delete this folder and all videos inside it? This cannot be undone."
     );
     if (!ok) return;
     await deleteFolder(folderId);
@@ -348,24 +346,6 @@ export default function AdminProjectPage() {
               Copied: {shareUrl}
             </p>
           )}
-
-          {/* New folder */}
-          <div className="mt-8 border-t border-ink-line pt-6">
-            <h3 className="font-display text-lg text-bone">New folder</h3>
-            <div className="mt-3 flex items-center gap-2">
-              <input
-                placeholder="Folder name"
-                value={newFolder}
-                onChange={(e) => setNewFolder(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && onCreateFolder()}
-                className="flex-1 rounded-full border border-ink-line bg-ink px-4 py-2 text-bone outline-none focus:border-ember/60"
-              />
-              <Button variant="primary" size="sm" onClick={onCreateFolder}>
-                <FolderPlus className="h-4 w-4" />
-                Create
-              </Button>
-            </div>
-          </div>
         </section>
 
         {/* Files / Folders (Drive-like) */}
@@ -385,10 +365,16 @@ export default function AdminProjectPage() {
                 {openFolder ? openFolder.name : "Content"}
               </h2>
             </div>
-            <Button variant="ember" size="sm" onClick={() => fileRef.current?.click()}>
-              <Upload className="h-4 w-4" />
-              Upload
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button variant="ghost" size="sm" onClick={onCreateFolder}>
+                <FolderPlus className="h-4 w-4" />
+                New folder
+              </Button>
+              <Button variant="ember" size="sm" onClick={() => fileRef.current?.click()}>
+                <Upload className="h-4 w-4" />
+                Upload
+              </Button>
+            </div>
             <input
               ref={fileRef}
               type="file"
