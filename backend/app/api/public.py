@@ -69,6 +69,16 @@ def public_video_download(video_id: str, db: Session = Depends(get_db)):
     url = storage.presigned_download(video.source_key, f"{safe}.mp4")
     return {"url": url}
 
+@router.get("/images/{image_id}/download")
+def image_download(image_id: str, db: Session = Depends(get_db)):
+    image = db.query(Image).get(image_id)
+    if not image or not image.key:
+        raise HTTPException(status_code=404, detail="Not found")
+    ext = image.key.split(".")[-1] if "." in image.key else "jpg"
+    filename = f"{image.title or 'image'}.{ext}"
+    url = storage.presigned_download(image.key, filename)
+    return {"url": url}
+
 
 @router.post("/projects/{slug}/unlock")
 def unlock(slug: str, payload: ProjectUnlock, db: Session = Depends(get_db)):
@@ -89,3 +99,5 @@ def get_by_share(token: str, db: Session = Depends(get_db)):
     if not project:
         raise HTTPException(status_code=404, detail="Not found")
     return {"locked": False, "project": _serialize(project).model_dump()}
+
+
