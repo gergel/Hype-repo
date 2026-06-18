@@ -7,7 +7,7 @@ from app.core.security import (
     create_access_token,
     decode_token,
 )
-from app.models import Project, Video
+from app.models import Project, Video, Image
 from app.schemas import PublicProject, ProjectUnlock, VideoOut, FolderOut, ImageOut
 from app.services import storage
 
