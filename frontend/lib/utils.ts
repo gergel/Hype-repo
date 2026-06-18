@@ -90,59 +90,78 @@ export async function downloadVideo(
 
 import JSZip from "jszip";
 
-// Egy kép letöltése (telón galériába a Web Share-rel, ha lehet)
-export async function downloadImage(url: string, filename: string) {
-  try {
-    const res = await fetch(url);
-    const blob = await res.blob();
-    const file = new File([blob], filename, { type: blob.type });
 
-    // Mobil: Web Share API → galériába mentés
-    const nav = navigator as Navigator & {
-      canShare?: (data: { files: File[] }) => boolean;
-      share?: (data: { files: File[] }) => Promise<void>;
-    };
-    if (nav.canShare && nav.canShare({ files: [file] }) && nav.share) {
-      await nav.share({ files: [file] });
-      return;
-    }
-
-    // Egyébként sima letöltés
-    const blobUrl = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = blobUrl;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    setTimeout(() => URL.revokeObjectURL(blobUrl), 2000);
-  } catch {
-    // ha a fetch elhasal (pl. CORS), nyissuk meg új lapon
-    window.open(url, "_blank");
-  }
+// Mobil-e? (van-e Web Share API fájlokkal)
+function isMobileShare(file?: File): boolean {
+  const nav = navigator as Navigator & {
+    canShare?: (data: { files: File[] }) => boolean;
+  };
+  if (!nav.canShare) return false;
+  if (file) return nav.canShare({ files: [file] });
+  return true;
 }
 
-// Több kép letöltése egy ZIP-be csomagolva
-export async function downloadImagesZip(
-  images: { url: string; title: string }[],
-  zipName = "images.zip"
+// Egy kép letöltése: gépen azonnal letölt, telón megosztás (galériába mentés)
+export async function downloadImage(url: string, filename: string) {
+  const res = await fetch(url, { mode: "cors" });
+  const blob = await res.blob();
+  const file = new File([blob], filename, { type: blob.type || "image/jpeg" });
+
+  const nav = navigator as Navigator & {
+    canShare?: (data: { files: File[] }) => boolean;
+    share?: (data: { files: File[] }) => Promise<void>;
+  };
+
+  // Telón: megosztás-panel → Fotókba mentés
+  if (nav.canShare && nav.canShare({ files: [file] }) && nav.share) {
+    try {
+      await nav.share({ files: [file] });
+      return;
+    } catch {
+      // ha a user megszakítja, nem csinálunk semmit
+      return;
+    }
+  }
+
+  // Gépen: azonnali letöltés blobból
+  const blobUrl = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = blobUrl;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(blobUrl), 2000);
+}
+
+// Több kép: telón egyenként megosztás (galériába), gépen egy ZIP
+export async function downloadImagesAll(
+  images: { url: string; title: string }[]
 ) {
+  const mobile = isMobileShare();
+
+  if (mobile) {
+    // Telón: egyenként megosztás-panellel a Fotókba
+    for (const img of images) {
+      const ext = img.url.split("?")[0].split(".").pop() || "jpg";
+      await downloadImage(img.url, `${img.title || "image"}.${ext}`);
+    }
+    return;
+  }
+
+  // Gépen: ZIP
   const zip = new JSZip();
   let index = 1;
   for (const img of images) {
     try {
-      const res = await fetch(img.url);
+      const res = await fetch(img.url, { mode: "cors" });
       const blob = await res.blob();
-      // kiterjesztés az URL-ből vagy a MIME típusból
       const extFromUrl = img.url.split("?")[0].split(".").pop() || "";
-      const ext =
-        extFromUrl.length <= 4
-          ? extFromUrl
-          : (blob.type.split("/")[1] || "jpg");
+      const ext = extFromUrl.length <= 4 ? extFromUrl : (blob.type.split("/")[1] || "jpg");
       const safeTitle = (img.title || `image-${index}`).replace(/[^\w.-]+/g, "_");
       zip.file(`${safeTitle}.${ext}`, blob);
     } catch {
-      // ha egy kép nem tölthető, kihagyjuk
+      // kihagyjuk a nem letölthetőt
     }
     index++;
   }
@@ -150,7 +169,7 @@ export async function downloadImagesZip(
   const blobUrl = URL.createObjectURL(content);
   const a = document.createElement("a");
   a.href = blobUrl;
-  a.download = zipName;
+  a.download = "photos.zip";
   document.body.appendChild(a);
   a.click();
   a.remove();
