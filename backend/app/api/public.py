@@ -8,7 +8,7 @@ from app.core.security import (
     decode_token,
 )
 from app.models import Project, Video
-from app.schemas import PublicProject, ProjectUnlock, VideoOut, FolderOut
+from app.schemas import PublicProject, ProjectUnlock, VideoOut, FolderOut, ImageOut
 from app.services import storage
 
 router = APIRouter(prefix="/api/public", tags=["public"])
@@ -27,6 +27,7 @@ def _serialize(project: Project) -> PublicProject:
         project_date=project.project_date,
         videos=[VideoOut.model_validate(v) for v in ready],
         folders=[FolderOut.model_validate(f) for f in project.folders],
+        images=[ImageOut.model_validate(i) for i in project.images],
     )
 
 @router.get("/projects/{slug}")
