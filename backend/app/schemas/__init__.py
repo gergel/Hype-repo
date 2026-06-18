@@ -62,6 +62,7 @@ class ProjectBase(BaseModel):
     description: str = ""
     cover_image_url: str = ""
     status: str = "draft"
+    brand: str = "hype"
     project_date: str = ""
 
 
@@ -76,6 +77,7 @@ class ProjectUpdate(BaseModel):
     description: Optional[str] = None
     cover_image_url: Optional[str] = None
     status: Optional[str] = None
+    brand: Optional[str] = None
     slug: Optional[str] = None
     password: Optional[str] = None  # "" clears password
     project_date: Optional[str] = None
@@ -89,6 +91,7 @@ class ProjectSummary(BaseModel):
     client_name: str
     cover_image_url: str
     status: str
+    brand: str = "hype"
     project_date: str = ""
     has_password: bool = False
 
@@ -107,6 +110,7 @@ class PublicProject(BaseModel):
     client_name: str
     description: str
     cover_image_url: str
+    brand: str = "hype"
     project_date: str = ""
     videos: List[VideoOut] = []
     folders: List[FolderOut] = []
