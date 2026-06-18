@@ -28,6 +28,7 @@ export interface PublicProject {
   client_name: string;
   description: string;
   cover_image_url: string;
+  brand: string;
   project_date: string;
   videos: Video[];
   folders: Folder[];
@@ -40,6 +41,7 @@ export interface ProjectSummary {
   client_name: string;
   cover_image_url: string;
   status: string;
+  brand: string;
   project_date: string;
   has_password: boolean;
 }
