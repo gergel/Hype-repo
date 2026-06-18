@@ -24,6 +24,7 @@ export interface Folder {
 export interface Image {
   id: string;
   title: string;
+  folder_id: string | null;
   url: string;
   width: number;
   height: number;
@@ -200,9 +201,14 @@ export async function deleteFolder(folderId: string) {
 
 
 // ---- Images ----
-export async function uploadImage(projectId: string, file: File) {
+export async function uploadImage(
+  projectId: string,
+  file: File,
+  folderId?: string | null
+) {
   const fd = new FormData();
   fd.append("file", file);
+  if (folderId) fd.append("folder_id", folderId);
   const res = await fetch(`${BASE}/admin/projects/${projectId}/images`, {
     method: "POST",
     headers: authHeaders(),
@@ -220,6 +226,14 @@ export async function deleteImage(imageId: string) {
   return req(`/admin/images/${imageId}`, {
     method: "DELETE",
     headers: authHeaders(),
+  });
+}
+
+export async function setImageFolder(imageId: string, folderId: string | null) {
+  return req(`/admin/images/${imageId}`, {
+    method: "PATCH",
+    headers: authHeaders(),
+    body: JSON.stringify({ folder_id: folderId }),
   });
 }
 
