@@ -10,7 +10,7 @@ from slugify import slugify
 from app.core.config import settings
 from app.core.database import get_db
 from app.core.security import require_admin, hash_password
-from app.models import Project, Video, Folder
+from app.models import Project, Video, Folder, Image
 from app.schemas import (
     ProjectCreate,
     ProjectUpdate,
@@ -23,6 +23,7 @@ from app.schemas import (
     FolderOut,
     FolderCreate,
     FolderUpdate,
+    ImageOut,
 )
 from app.services import storage, notion as notion_service
 from app.workers.tasks import process_video_task
@@ -432,6 +433,48 @@ def delete_folder(
         storage.delete_prefix(f"videos/{v.id}")
         db.delete(v)
     db.delete(folder)
+    db.commit()
+    return {"ok": True}
+
+
+# ---------------- Images ----------------
+@router.post("/projects/{project_id}/images", response_model=ImageOut)
+async def upload_image(
+    project_id: str,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    _: str = Depends(require_admin),
+):
+    project = db.query(Project).get(project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    image = Image(project_id=project_id)
+    db.add(image)
+    db.flush()  # van id-ja
+    data = await file.read()
+    ext = (file.filename or "image.jpg").split(".")[-1].lower()
+    key = f"images/{image.id}/original.{ext}"
+    storage.upload_bytes(key, data, file.content_type or "image/jpeg")
+    max_order = max([i.sort_order for i in project.images], default=-1)
+    image.title = (file.filename or "").rsplit(".", 1)[0]
+    image.url = storage.public_url(key)
+    image.key = key
+    image.size_bytes = len(data)
+    image.sort_order = max_order + 1
+    db.commit()
+    db.refresh(image)
+    return ImageOut.model_validate(image)
+
+
+@router.delete("/images/{image_id}")
+def delete_image(
+    image_id: str, db: Session = Depends(get_db), _: str = Depends(require_admin)
+):
+    image = db.query(Image).get(image_id)
+    if not image:
+        raise HTTPException(status_code=404, detail="Not found")
+    storage.delete_prefix(f"images/{image.id}")
+    db.delete(image)
     db.commit()
     return {"ok": True}
 
