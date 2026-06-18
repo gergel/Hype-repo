@@ -13,7 +13,7 @@ const mono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-mono" });
 
 export const metadata: Metadata = {
   title: "HYPE Productions — Client Cloud",
-  description: "Private screening room for HYPE Productions clients.",
+  description: "Private cloud sharing for HYPE Productions clients.",
 };
 
 export default function RootLayout({
