@@ -42,6 +42,7 @@ export interface PublicProject {
   brand: string;
   project_date: string;
   expires_at: string | null;
+  payment_mode: string;
   videos: Video[];
   folders: Folder[];
   images: Image[];
