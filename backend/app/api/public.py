@@ -79,6 +79,8 @@ def get_public_project(
             "title": project.title,
             "brand": project.brand,
             "contact_email": _contact_email(project),
+            "payment_mode": project.payment_mode,
+            "slug": project.slug,
         }
 
     if project.password_hash:
