@@ -124,6 +124,7 @@ function PortalContent() {
   if (expired) {
     const minimalProject: PublicProject = {
       id: "",
+      expires_at: null,
       slug,
       title: expired.title,
       client_name: "",
