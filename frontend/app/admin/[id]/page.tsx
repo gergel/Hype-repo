@@ -214,8 +214,8 @@ function daysLeft(): number | null {
     await reorderVideos(id, next.map((v) => v.id));
   }
 
-  async function makeShare() {
-    const { url } = await regenShare(id);
+function makeShare() {
+    const url = `${window.location.origin}/p/${form.slug}`;
     setShareUrl(url);
     navigator.clipboard?.writeText(url).catch(() => {});
   }
