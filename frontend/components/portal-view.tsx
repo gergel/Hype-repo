@@ -10,10 +10,17 @@ import { downloadVideo, downloadImage, downloadImagesAll } from "@/lib/utils";
 
 const CONTENTBEE_ACCENT = "rgb(243, 199, 68)";
 
-export function PortalView({ project }: { project: PublicProject }) {
+export function PortalView({
+  project,
+  expiredContactEmail,
+}: {
+  project: PublicProject;
+  expiredContactEmail?: string;
+}) {
   const [active, setActive] = useState<Video | null>(null);
   const [lightbox, setLightbox] = useState<ImageType | null>(null);
   const hasCustomCover = !!project.cover_image_url;
+  const isExpired = !!expiredContactEmail;
 
   const isContentBee = project.brand === "contentbee";
   const brandLabel = isContentBee ? "ContentBee" : "HYPE Productions";
@@ -111,36 +118,61 @@ export function PortalView({ project }: { project: PublicProject }) {
             </motion.p>
           )}
 
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.24, ease: [0.16, 1, 0.3, 1] }}
-            className="mt-9 flex flex-wrap items-center gap-3"
-          >
-            <DownloadAllButton videos={project.videos} images={allImages} />
-            {project.videos.length > 0 && (
-              <Button variant="ghost" size="lg" asChild>
-                <a href="#films">
-                  {project.videos.length} {project.videos.length === 1 ? "film" : "films"}
-                  <ArrowDown className="h-4 w-4" />
-                </a>
-              </Button>
-            )}
-            {allImages.length > 0 && (
-              <Button variant="ghost" size="lg" asChild>
-                <a href="#images">
-                  {allImages.length} {allImages.length === 1 ? "photo" : "photos"}
-                  <ArrowDown className="h-4 w-4" />
-                </a>
-              </Button>
-            )}
-          </motion.div>
+          {!isExpired && (
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 0.24, ease: [0.16, 1, 0.3, 1] }}
+              className="mt-9 flex flex-wrap items-center gap-3"
+            >
+              <DownloadAllButton videos={project.videos} images={allImages} />
+              {project.videos.length > 0 && (
+                <Button variant="ghost" size="lg" asChild>
+                  <a href="#films">
+                    {project.videos.length} {project.videos.length === 1 ? "film" : "films"}
+                    <ArrowDown className="h-4 w-4" />
+                  </a>
+                </Button>
+              )}
+              {allImages.length > 0 && (
+                <Button variant="ghost" size="lg" asChild>
+                  <a href="#images">
+                    {allImages.length} {allImages.length === 1 ? "photo" : "photos"}
+                    <ArrowDown className="h-4 w-4" />
+                  </a>
+                </Button>
+              )}
+            </motion.div>
+          )}
         </div>
       </section>
 
-      
+      {/* ---------- Expired üzenet ---------- */}
+      {isExpired && (
+        <section className="mx-auto max-w-3xl px-6 py-20 sm:py-28">
+          <div className="rounded-2xl border border-ink-line bg-ink-card p-8 sm:p-10 text-center">
+            <h2
+              className="font-display text-2xl text-bone sm:text-3xl"
+              style={accent ? { color: accent } : undefined}
+            >
+              This project is no longer available
+            </h2>
+            <p className="mt-4 text-base leading-relaxed text-mist">
+              If you need access to the materials again, please contact us at{" "}
+              
+                href={`mailto:${expiredContactEmail}`}
+                className="text-bone underline underline-offset-4 transition hover:text-ember"
+              >
+                {expiredContactEmail}
+              </a>
+              .
+            </p>
+          </div>
+        </section>
+      )}
+
       {/* ---------- Films ---------- */}
-      {project.videos.length > 0 && (
+      {!isExpired && project.videos.length > 0 && (
         <section id="films" className="mx-auto max-w-6xl px-6 py-20 sm:py-28">
           <div className="mb-10 flex items-end justify-between border-b border-ink-line pb-6">
             <h2 className="font-display text-2xl text-bone sm:text-3xl">The films</h2>
@@ -172,7 +204,7 @@ export function PortalView({ project }: { project: PublicProject }) {
       )}
 
       {/* ---------- Images ---------- */}
-      {allImages.length > 0 && (
+      {!isExpired && allImages.length > 0 && (
         <section id="images" className="mx-auto max-w-6xl px-6 pb-20 sm:pb-28">
           <div className="mb-10 flex items-end justify-between border-b border-ink-line pb-6">
             <h2 className="font-display text-2xl text-bone sm:text-3xl">Photos</h2>
@@ -365,7 +397,7 @@ function ImageLightbox({
     if (preparing) return;
     setPreparing(true);
     try {
-      await downloadImage(image.id);
+      await downloadImage(image.id, image.title);
     } finally {
       setTimeout(() => setPreparing(false), 1000);
     }
@@ -432,13 +464,11 @@ function DownloadAllButton({
     if (busy) return;
     setBusy(true);
     try {
-      // Videók egyenként
       for (const v of videos) {
         if (!v.mp4_url) continue;
         await downloadVideo(v.id, v.mp4_url, `${v.title}.mp4`, v.size_bytes);
         await new Promise((r) => setTimeout(r, 800));
       }
-      // Képek egy ZIP-ben (gépen) / galériába (telón)
       if (images.length > 0) {
         await downloadImagesAll(images.map((i) => ({ id: i.id, title: i.title })));
       }
