@@ -50,7 +50,6 @@ def start_payment(
 
 
 def get_payment_state(payment_id: str) -> dict:
-    """Lekérdezi egy fizetés állapotát (v4). Visszaadja a Barion választ (Status stb.)."""
     params = {"PaymentId": payment_id}
     headers = {"x-pos-key": settings.BARION_POS_KEY}
     resp = requests.get(_api("/v4/Payment/GetPaymentState"), params=params, headers=headers, timeout=30)
