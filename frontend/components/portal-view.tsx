@@ -31,6 +31,7 @@ export function PortalView({
   const [active, setActive] = useState<Video | null>(null);
   const [lightbox, setLightbox] = useState<{ images: ImageType[]; index: number } | null>(null);
   const [termsOpen, setTermsOpen] = useState(false);
+  const [aszfOpen, setAszfOpen] = useState(false);
   const hasCustomCover = !!project.cover_image_url;
   const isExpired = !!expiredContactEmail;
 
@@ -72,7 +73,6 @@ export function PortalView({
     return Math.round((expDay.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
   }
   const remainingDays = isExpired ? null : daysUntilExpiry();
-  const isPaid = project.payment_mode === "paid";
 
   return (
     <main className="relative">
@@ -181,15 +181,12 @@ export function PortalView({
                 : "Az anyagok ma járnak le"}
             </span>
             
-              {isPaid && (
-              
-                <a href="#legal"
-                className="flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-eyebrow text-mist transition hover:text-bone"
-              >
-                <Info className="h-3.5 w-3.5" />
-                Részletek
-              </a>
-            )}
+              href="#legal"
+              className="flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-eyebrow text-mist transition hover:text-bone"
+            >
+              <Info className="h-3.5 w-3.5" />
+              Részletek
+            </a>
           </div>
         </div>
       )}
@@ -210,7 +207,11 @@ export function PortalView({
                 <p className="mt-4 text-base leading-relaxed text-mist">
                   Az anyagok újbóli eléréséhez válassz az alábbi csomagok közül.
                 </p>
-                <PaymentPackages slug={project.slug} accent={accent} />
+                <PaymentPackages
+                  slug={project.slug}
+                  accent={accent}
+                  onOpenAszf={() => setAszfOpen(true)}
+                />
                 <p className="mt-6 text-sm text-mist">
                   Kérdésed van? Írj nekünk:{" "}
                   
@@ -301,7 +302,7 @@ export function PortalView({
       )}
 
       {/* ---------- Jogi szöveg ---------- */}
-      {!isExpired && isPaid && (
+      {!isExpired && (
         <section id="legal" className="mx-auto max-w-3xl px-6 py-16">
           <div className="border-t border-ink-line pt-10">
             <h2 className="font-display text-xl text-bone sm:text-2xl">
@@ -309,18 +310,28 @@ export function PortalView({
             </h2>
             <div className="mt-4 space-y-3 text-sm leading-relaxed text-mist">
               <p>
-                Az elkészült fájlokat a HypeClient rendszerében 30 napig díjmentesen elérheted és letöltheted. 
-                A 30 nap lejárta után az online hozzáférés megszűnik, kivéve, ha tárhelycsomagot rendelsz. 
-                Fizetős előfizetés nem indul automatikusan. 
-                A fájlokat ezt követően további 3 hónapig archiváljuk, majd véglegesen töröljük, ezért kérjük, időben gondoskodj a letöltésükről vagy hosszabb távú tárolásukról.
+                Az elkészült fájlokat a HypeClient rendszerében 30 napig díjmentesen
+                elérheted és letöltheted. A 30 nap lejárta után az online hozzáférés
+                megszűnik, kivéve, ha tárhelycsomagot rendelsz. Fizetős előfizetés nem
+                indul automatikusan. A fájlokat ezt követően további 3 hónapig
+                archiváljuk, majd véglegesen töröljük, ezért kérjük, időben gondoskodj a
+                letöltésükről vagy hosszabb távú tárolásukról.
               </p>
             </div>
-            <button
-              onClick={() => setTermsOpen(true)}
-              className="mt-5 rounded-full border border-ink-line px-5 py-2.5 text-sm text-bone transition hover:border-ember/60"
-            >
-              Teljes felhasználási feltételek
-            </button>
+            <div className="mt-5 flex flex-wrap gap-3">
+              <button
+                onClick={() => setTermsOpen(true)}
+                className="rounded-full border border-ink-line px-5 py-2.5 text-sm text-bone transition hover:border-ember/60"
+              >
+                Teljes felhasználási feltételek
+              </button>
+              <button
+                onClick={() => setAszfOpen(true)}
+                className="rounded-full border border-ink-line px-5 py-2.5 text-sm text-bone transition hover:border-ember/60"
+              >
+                ÁSZF
+              </button>
+            </div>
           </div>
         </section>
       )}
@@ -341,6 +352,7 @@ export function PortalView({
         />
       )}
       {termsOpen && <TermsModal onClose={() => setTermsOpen(false)} />}
+      {aszfOpen && <AszfModal onClose={() => setAszfOpen(false)} />}
     </main>
   );
 }
@@ -608,7 +620,6 @@ function ImageLightbox({
   );
 }
 
-
 function DownloadAllButton({
   videos,
   images,
@@ -675,8 +686,17 @@ function ImagesDownloadButton({
   );
 }
 
-function PaymentPackages({ slug, accent }: { slug: string; accent?: string }) {
+function PaymentPackages({
+  slug,
+  accent,
+  onOpenAszf,
+}: {
+  slug: string;
+  accent?: string;
+  onOpenAszf: () => void;
+}) {
   const [busy, setBusy] = useState<string | null>(null);
+  const [accepted, setAccepted] = useState(false);
 
   const packages = [
     { code: "1month", label: "1 hónap", price: "6 000 Ft" },
@@ -685,7 +705,7 @@ function PaymentPackages({ slug, accent }: { slug: string; accent?: string }) {
   ];
 
   async function pay(code: string) {
-    if (busy) return;
+    if (busy || !accepted) return;
     setBusy(code);
     try {
       const url = await startPayment(slug, code);
@@ -696,25 +716,46 @@ function PaymentPackages({ slug, accent }: { slug: string; accent?: string }) {
   }
 
   return (
-    <div className="mt-6 grid gap-3 sm:grid-cols-3">
-      {packages.map((p) => (
-        <button
-          key={p.code}
-          onClick={() => pay(p.code)}
-          disabled={!!busy}
-          className="flex flex-col items-center gap-1 rounded-2xl border border-ink-line bg-ink px-4 py-5 transition hover:border-ember/60 disabled:opacity-60"
-          style={busy === p.code && accent ? { borderColor: accent } : undefined}
-        >
-          <span className="font-display text-lg text-bone">{p.label}</span>
-          <span className="font-mono text-sm text-mist">
-            {busy === p.code ? "Átirányítás…" : p.price}
-          </span>
-        </button>
-      ))}
+    <div className="mt-6">
+      <label className="flex cursor-pointer items-start justify-center gap-2.5 text-left text-sm text-mist">
+        <input
+          type="checkbox"
+          checked={accepted}
+          onChange={(e) => setAccepted(e.target.checked)}
+          className="mt-0.5 h-4 w-4 shrink-0 accent-ember"
+        />
+        <span>
+          Elolvastam és elfogadom az{" "}
+          <button
+            type="button"
+            onClick={onOpenAszf}
+            className="text-bone underline underline-offset-4 transition hover:text-ember"
+          >
+            Általános Szerződési Feltételeket
+          </button>
+          .
+        </span>
+      </label>
+
+      <div className="mt-5 grid gap-3 sm:grid-cols-3">
+        {packages.map((p) => (
+          <button
+            key={p.code}
+            onClick={() => pay(p.code)}
+            disabled={!!busy || !accepted}
+            className="flex flex-col items-center gap-1 rounded-2xl border border-ink-line bg-ink px-4 py-5 transition hover:border-ember/60 disabled:cursor-not-allowed disabled:opacity-40"
+            style={busy === p.code && accent ? { borderColor: accent } : undefined}
+          >
+            <span className="font-display text-lg text-bone">{p.label}</span>
+            <span className="font-mono text-sm text-mist">
+              {busy === p.code ? "Átirányítás…" : p.price}
+            </span>
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
-
 
 function TermsModal({ onClose }: { onClose: () => void }) {
   useEffect(() => {
@@ -861,6 +902,112 @@ function TermsModal({ onClose }: { onClose: () => void }) {
             <p className="border-t border-ink-line pt-4 text-xs text-mist">
               A HypeClient szolgáltatás üzemeltetője: Hype Productions Kft.
             </p>
+          </div>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
+  );
+}
+
+function AszfModal({ onClose }: { onClose: () => void }) {
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    window.addEventListener("keydown", onKey);
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = "";
+    };
+  }, [onClose]);
+
+  const sections = [
+    {
+      h: "1. Szolgáltató adatai",
+      p: "Cégnév: Hype Productions Korlátolt Felelősségű Társaság · Rövidített cégnév: Hype Productions Kft. · Székhely: 1045 Budapest, Virág utca 24. I. emelet 2. · Cégjegyzékszám: 01-09-988327 · Adószám: 23995828-2-41 · Nyilvántartó bíróság: Fővárosi Törvényszék Cégbírósága · E-mail: info@hypestab.hu · Honlap: https://hypeclient.com",
+    },
+    {
+      h: "2. A szolgáltatás leírása",
+      p: "A HypeClient a Hype Productions Kft. online ügyfél- és tárhelyszolgáltatása, amely lehetővé teszi az elkészült digitális fájlok online megtekintését, letöltését és meghatározott időtartamú tárolását.",
+    },
+    {
+      h: "3. Díjmentes hozzáférés",
+      p: "A HypeClient rendszerébe feltöltött elkészült anyagok a feltöltésről szóló értesítés megküldésétől számított 30 napon keresztül díjmentesen elérhetők és letölthetők. A 30 napos időszak lejártát követően az online hozzáférés megszűnik, kivéve, ha az ügyfél tárhelycsomagot rendel.",
+    },
+    {
+      h: "4. Tárhelycsomagok",
+      p: "A HypeClient tárhelycsomagjai egyszeri díjas szolgáltatások. A megvásárolt tárhelycsomag a választott időtartam lejártával automatikusan megszűnik. Ismétlődő díjfizetés, automatikus megújítás vagy automatikus bankkártyaterhelés nem történik.",
+    },
+    {
+      h: "5. Fizetés",
+      p: "A tárhelycsomagok díjának kiegyenlítése a Barion rendszerén keresztül történik. A bankkártyaadatok kezelése a Barion biztonságos felületén zajlik. A Hype Productions Kft. a bankkártyaadatokhoz nem fér hozzá és azokat nem tárolja. A szolgáltatásról elektronikus számla kerül kiállításra a Számlázz.hu rendszerén keresztül.",
+    },
+    {
+      h: "6. Archiválás",
+      p: "Amennyiben az ügyfél nem rendel tárhelycsomagot vagy a tárhelycsomag lejár, az anyagok online elérhetősége megszűnik. A Hype Productions Kft. ezt követően az anyagokat további 3 hónapig offline archivált, az ügyfél által közvetlenül nem hozzáférhető tárhelyen őrzi meg.",
+    },
+    {
+      h: "7. Végleges törlés",
+      p: "A 3 hónapos archiválási időszak lejártát követően az anyagok véglegesen törlésre kerülnek. A törlést követően az anyagok visszaállítására nincs lehetőség. Az ügyfél köteles gondoskodni a számára fontos fájlok saját biztonsági mentéséről.",
+    },
+    {
+      h: "8. Felelősség",
+      p: "A HypeClient nem minősül korlátlan archiválási vagy biztonsági mentési szolgáltatásnak. A Hype Productions Kft. nem felel az ügyfél által elmulasztott letöltésből vagy biztonsági mentés hiányából eredő károkért.",
+    },
+    {
+      h: "9. Panaszkezelés",
+      p: "Az ügyfél a szolgáltatással kapcsolatos panaszát az info@hypestab.hu e-mail címen jelentheti be. A szolgáltató a panaszt annak beérkezésétől számított 30 napon belül kivizsgálja és megválaszolja.",
+    },
+    {
+      h: "10. Adatkezelés",
+      p: "A személyes adatok kezelésére a Hype Productions Kft. Adatkezelési Tájékoztatója irányadó.",
+    },
+    {
+      h: "11. Irányadó jog",
+      p: "Jelen ÁSZF-re a magyar jog szabályai alkalmazandók. A jelen ÁSZF-ben nem szabályozott kérdésekben különösen a Polgári Törvénykönyv, az elektronikus kereskedelmi szolgáltatásokról szóló törvény, valamint a fogyasztóvédelmi és adatvédelmi jogszabályok rendelkezései az irányadók.",
+    },
+  ];
+
+  return (
+    <AnimatePresence>
+      <motion.div
+        className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto bg-black/80 backdrop-blur-sm p-4 sm:p-8"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        onClick={onClose}
+      >
+        <motion.div
+          className="relative my-8 w-full max-w-2xl rounded-2xl border border-ink-line bg-ink-card p-6 sm:p-10"
+          initial={{ scale: 0.97, opacity: 0, y: 12 }}
+          animate={{ scale: 1, opacity: 1, y: 0 }}
+          exit={{ scale: 0.97, opacity: 0, y: 12 }}
+          transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button
+            aria-label="Bezárás"
+            onClick={onClose}
+            className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full border border-ink-line text-mist transition hover:bg-white/5 hover:text-bone"
+          >
+            <X className="h-5 w-5" />
+          </button>
+
+          <h2 className="pr-12 font-display text-2xl text-bone">
+            Általános Szerződési Feltételek
+          </h2>
+          <p className="mt-1 font-mono text-[11px] uppercase tracking-eyebrow text-mist">
+            Hatályos: 2026
+          </p>
+
+          <div className="mt-6 space-y-5 text-sm leading-relaxed text-mist">
+            {sections.map((s) => (
+              <div key={s.h}>
+                <h3 className="font-display text-base text-bone">{s.h}</h3>
+                <p className="mt-2">{s.p}</p>
+              </div>
+            ))}
           </div>
         </motion.div>
       </motion.div>
