@@ -191,40 +191,25 @@ def start_payment(slug: str, payload: dict, db: Session = Depends(get_db)):
 
 @router.post("/barion/callback")
 async def barion_callback(request: Request, db: Session = Depends(get_db)):
-    # A Barion POST-ban küldi a PaymentId-t (form vagy JSON)
-    payment_id = None
-    try:
-        body = await request.json()
-        payment_id = body.get("PaymentId")
-    except Exception:
-        form = await request.form()
-        payment_id = form.get("PaymentId")
+    # A Barion a paymentId-t a query stringben küldi (?paymentId=...)
+    qp = request.query_params
+    payment_id = (
+        qp.get("paymentId")
+        or qp.get("PaymentId")
+        or qp.get("paymentid")
+    )
+
+    # Tartalék: ha mégis a body-ban jönne
+    if not payment_id:
+        try:
+            body = await request.json()
+            payment_id = body.get("PaymentId") or body.get("paymentId")
+        except Exception:
+            try:
+                form = await request.form()
+                payment_id = form.get("PaymentId") or form.get("paymentId")
+            except Exception:
+                payment_id = None
 
     if not payment_id:
-        return {"ok": True}  # nincs mit tenni, de 200-zal nyugtázunk
-
-    # Lekérdezzük a tényleges állapotot (a callback önmagában nem bizonyíték!)
-    state = barion.get_payment_state(payment_id)
-    status = state.get("Status")
-    request_id = state.get("PaymentRequestId") or ""
-
-    # Csak sikeres fizetésnél hosszabbítunk
-    if status == "Succeeded":
-        # request_id formátuma: "{project_id}_{pkg_code}_{ts}"
-        parts = request_id.split("_")
-        if len(parts) >= 2:
-            project_id = parts[0]
-            pkg_code = parts[1]
-            pkg = PACKAGES.get(pkg_code)
-            project = db.query(Project).get(project_id)
-            if project and pkg:
-                now = datetime.now(timezone.utc)
-                current = project.expires_at
-                if current and current.tzinfo is None:
-                    current = current.replace(tzinfo=timezone.utc)
-                # A későbbitől számolunk: mostani lejárat vagy ma, amelyik később van
-                base_date = current if (current and current > now) else now
-                project.expires_at = base_date + timedelta(days=pkg["days"])
-                db.commit()
-
-    return {"ok": True}
+        return {"ok": True}
