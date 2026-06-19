@@ -53,7 +53,14 @@ export function PortalView({
     .filter((g) => g.videos.length > 0);
 
   const allImages = project.images || [];
-  // Hátralévő napok a lejáratig (csak ha nem lejárt nézet)
+  const looseImages = allImages.filter((i) => !i.folder_id);
+  const foldersWithImages = folders
+    .map((f) => ({
+      folder: f,
+      images: allImages.filter((i) => i.folder_id === f.id),
+    }))
+    .filter((g) => g.images.length > 0);
+
   function daysUntilExpiry(): number | null {
     if (!project.expires_at) return null;
     const exp = new Date(project.expires_at);
@@ -64,13 +71,6 @@ export function PortalView({
     return Math.round((expDay.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
   }
   const remainingDays = isExpired ? null : daysUntilExpiry();
-  const looseImages = allImages.filter((i) => !i.folder_id);
-  const foldersWithImages = folders
-    .map((f) => ({
-      folder: f,
-      images: allImages.filter((i) => i.folder_id === f.id),
-    }))
-    .filter((g) => g.images.length > 0);
 
   return (
     <main className="relative">
@@ -169,9 +169,6 @@ export function PortalView({
         </div>
       </section>
 
-      </div>
-      </section>
-
       {/* ---------- Elérhetőség sáv ---------- */}
       {!isExpired && remainingDays !== null && (
         <div className="border-b border-ink-line bg-ink-card">
@@ -191,7 +188,6 @@ export function PortalView({
           </div>
         </div>
       )}
-
 
       {/* ---------- Expired ---------- */}
       {isExpired && (
@@ -299,6 +295,7 @@ export function PortalView({
         </section>
       )}
 
+      {/* ---------- Jogi szöveg ---------- */}
       {!isExpired && (
         <section id="legal" className="mx-auto max-w-3xl px-6 py-16">
           <div className="border-t border-ink-line pt-10">
@@ -320,7 +317,6 @@ export function PortalView({
           </div>
         </section>
       )}
-  
 
       <footer className="mx-auto max-w-6xl px-6 pb-16 pt-4">
         <p className="font-mono text-xs uppercase tracking-eyebrow text-mist">
@@ -678,7 +674,7 @@ function PaymentPackages({ slug, accent }: { slug: string; accent?: string }) {
     { code: "180days", label: "180 nap", price: "30 000 Ft" },
     { code: "1year", label: "1 év", price: "50 000 Ft" },
   ];
-  
+
   async function pay(code: string) {
     if (busy) return;
     setBusy(code);
