@@ -30,6 +30,7 @@ export function PortalView({
 }) {
   const [active, setActive] = useState<Video | null>(null);
   const [lightbox, setLightbox] = useState<{ images: ImageType[]; index: number } | null>(null);
+  const [termsOpen, setTermsOpen] = useState(false);
   const hasCustomCover = !!project.cover_image_url;
   const isExpired = !!expiredContactEmail;
 
@@ -603,7 +604,6 @@ function ImageLightbox({
   );
 }
 
-const [termsOpen, setTermsOpen] = useState(false);
 
 function DownloadAllButton({
   videos,
