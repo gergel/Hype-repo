@@ -48,6 +48,7 @@ class Project(Base):
     created_at = Column(DateTime(timezone=True), default=_now)
     updated_at = Column(DateTime(timezone=True), default=_now, onupdate=_now)
     expires_at = Column(DateTime, nullable=True)
+    payment_mode = Column(String, default="contact")  # contact | paid
     videos = relationship(
         "Video",
         back_populates="project",
