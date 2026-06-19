@@ -88,7 +88,7 @@ def create_project(
         cover_image_url=payload.cover_image_url,
         status=payload.status,
         password_hash=hash_password(payload.password) if payload.password else None,
-        expires_at=datetime.now(timezone.utc) + timedelta(days=180),
+        expires_at=datetime.now(timezone.utc) + timedelta(days=30),
     )
     db.add(project)
     db.commit()
