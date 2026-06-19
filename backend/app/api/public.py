@@ -19,7 +19,7 @@ router = APIRouter(prefix="/api/public", tags=["public"])
 # Lejárati e-mail márka szerint
 def _contact_email(project: Project) -> str:
     if project.brand == "contentbee":
-        return "hype.stab@gmail.com"
+        return "hello@contentbee.hu"
     return "info@hypestab.hu"
 
 
