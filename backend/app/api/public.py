@@ -164,9 +164,10 @@ def start_payment(slug: str, payload: dict, db: Session = Depends(get_db)):
     ts = int(datetime.now(timezone.utc).timestamp())
     payment_request_id = f"{project.id}_{pkg_code}_{ts}"
 
-    base = settings.FRONTEND_URL.rstrip("/")
-    redirect_url = f"{base}/p/{project.slug}"
-    callback_url = f"{base}/api/public/barion/callback"
+    front = settings.FRONTEND_URL.rstrip("/")
+    api = (settings.API_BASE_URL or "").rstrip("/")
+    redirect_url = f"{front}/p/{project.slug}"
+    callback_url = f"{api}/api/public/barion/callback"
 
     data = barion.start_payment(
         payment_request_id=payment_request_id,
