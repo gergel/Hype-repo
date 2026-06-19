@@ -165,36 +165,34 @@ export function PortalView({
               className="font-display text-2xl text-bone sm:text-3xl"
               style={accent ? { color: accent } : undefined}
             >
-              This project is no longer available
+              Ez a projekt már nem elérhető
             </h2>
 
             {expiredPaymentMode === "paid" ? (
               <>
                 <p className="mt-4 text-base leading-relaxed text-mist">
-                  To regain access to the materials, choose an extension below.
+                  Az anyagok újbóli eléréséhez válassz az alábbi csomagok közül.
                 </p>
                 <PaymentPackages slug={project.slug} accent={accent} />
                 <p className="mt-6 text-sm text-mist">
-                  Questions? Contact us at{" "}
+                  Kérdésed van? Írj nekünk:{" "}
                   
-                    <a href={`mailto:${expiredContactEmail}`}
+                    href={`mailto:${expiredContactEmail}`}
                     className="text-bone underline underline-offset-4 transition hover:text-ember"
                   >
                     {expiredContactEmail}
                   </a>
-                  .
                 </p>
               </>
             ) : (
               <p className="mt-4 text-base leading-relaxed text-mist">
-                If you need access to the materials again, please contact us at{" "}
+                Ha újra szükséged van az anyagokra, vedd fel velünk a kapcsolatot:{" "}
                 
-                  <a href={`mailto:${expiredContactEmail}`}
+                  href={`mailto:${expiredContactEmail}`}
                   className="text-bone underline underline-offset-4 transition hover:text-ember"
                 >
                   {expiredContactEmail}
                 </a>
-                .
               </p>
             )}
           </div>
@@ -617,11 +615,11 @@ function PaymentPackages({ slug, accent }: { slug: string; accent?: string }) {
   const [busy, setBusy] = useState<string | null>(null);
 
   const packages = [
-    { code: "1month", label: "1 month", price: "6 000 Ft" },
-    { code: "180days", label: "180 days", price: "30 000 Ft" },
-    { code: "1year", label: "1 year", price: "50 000 Ft" },
+    { code: "1month", label: "1 hónap", price: "6 000 Ft" },
+    { code: "180days", label: "180 nap", price: "30 000 Ft" },
+    { code: "1year", label: "1 év", price: "50 000 Ft" },
   ];
-
+  
   async function pay(code: string) {
     if (busy) return;
     setBusy(code);
@@ -645,7 +643,7 @@ function PaymentPackages({ slug, accent }: { slug: string; accent?: string }) {
         >
           <span className="font-display text-lg text-bone">{p.label}</span>
           <span className="font-mono text-sm text-mist">
-            {busy === p.code ? "Redirecting…" : p.price}
+            {busy === p.code ? "Átirányítás…" : p.price}
           </span>
         </button>
       ))}
