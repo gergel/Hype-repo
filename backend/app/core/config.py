@@ -33,5 +33,22 @@ class Settings(BaseSettings):
     NOTION_API_KEY: str = ""
     NOTION_DATABASE_ID: str = ""
 
+    # Barion (fizetés)
+    BARION_POS_KEY: str = ""
+    BARION_ENV: str = "test"  # test | prod
+    BARION_PAYEE: str = ""    # a Barion bolt email címe (ahova a pénz megy)
+
+    @property
+    def BARION_API_BASE(self) -> str:
+        # test → api.test.barion.com, prod → api.barion.com
+        return (
+            "https://api.test.barion.com"
+            if self.BARION_ENV == "test"
+            else "https://api.barion.com"
+        )
+
 
 settings = Settings()
+
+
+PUBLIC_BASE_URL = settings.FRONTEND_URL
