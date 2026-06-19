@@ -131,11 +131,13 @@ export default function AdminProjectPage() {
     refresh();
   }
 
-  function daysLeft(): number | null {
+function daysLeft(): number | null {
     if (!form.expires_at) return null;
-    const exp = new Date(form.expires_at + "T23:59:59").getTime();
-    const diff = Math.ceil((exp - Date.now()) / (1000 * 60 * 60 * 24));
-    return diff;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const exp = new Date(form.expires_at + "T00:00:00");
+    exp.setHours(0, 0, 0, 0);
+    return Math.round((exp.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
   }
 
   async function clearPassword() {
