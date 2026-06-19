@@ -130,6 +130,7 @@ class PublicProject(BaseModel):
     brand: str = "hype"
     project_date: str = ""
     expires_at: Optional[datetime] = None
+    payment_mode: str = "contact"
     videos: List[VideoOut] = []
     folders: List[FolderOut] = []
     images: List[ImageOut] = []
