@@ -29,25 +29,52 @@ function PortalContent() {
   const [project, setProject] = useState<PublicProject | null>(null);
   const [locked, setLocked] = useState(false);
   const [lockMeta, setLockMeta] = useState<{ title?: string; cover?: string }>({});
+  const [expired, setExpired] = useState<{
+    title: string;
+    brand: string;
+    contact_email: string;
+  } | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+
   async function load(unlockToken?: string) {
     setLoading(true);
     try {
       if (shareToken) {
         const data = await getByShare(shareToken);
-        setProject(data.project);
-        setLocked(false);
+        if (data.expired) {
+          setExpired({
+            title: data.title || "",
+            brand: data.brand || "hype",
+            contact_email: data.contact_email || "info@hypestab.hu",
+          });
+          setLocked(false);
+          setProject(null);
+        } else if (data.project) {
+          setProject(data.project);
+          setLocked(false);
+          setExpired(null);
+        }
       } else {
         const stored =
           unlockToken || sessionStorage.getItem(`hype_unlock_${slug}`) || undefined;
         const data = await getPublicProject(slug, stored);
-        if (data.locked) {
+        if (data.expired) {
+          setExpired({
+            title: data.title || "",
+            brand: data.brand || "hype",
+            contact_email: data.contact_email || "info@hypestab.hu",
+          });
+          setLocked(false);
+          setProject(null);
+        } else if (data.locked) {
           setLocked(true);
           setLockMeta({ title: data.title, cover: data.cover_image_url });
+          setExpired(null);
         } else if (data.project) {
           setProject(data.project);
           setLocked(false);
+          setExpired(null);
         }
       }
     } catch {
@@ -56,10 +83,12 @@ function PortalContent() {
       setLoading(false);
     }
   }
+
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slug, shareToken]);
+
   if (loading) {
     return (
       <main className="flex min-h-screen items-center justify-center">
@@ -87,5 +116,29 @@ function PortalContent() {
       />
     );
   }
+
+  // Lejárt: csak header + üzenet, anyagok elrejtve
+  if (expired) {
+    const minimalProject: PublicProject = {
+      id: "",
+      slug,
+      title: expired.title,
+      client_name: "",
+      description: "",
+      cover_image_url: "",
+      brand: expired.brand,
+      project_date: "",
+      videos: [],
+      folders: [],
+      images: [],
+    };
+    return (
+      <PortalView
+        project={minimalProject}
+        expiredContactEmail={expired.contact_email}
+      />
+    );
+  }
+
   return project ? <PortalView project={project} /> : null;
 }
