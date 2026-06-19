@@ -27,11 +27,11 @@ def _is_expired(project: Project) -> bool:
     if not project.expires_at:
         return False
     exp = project.expires_at
-    # ha naiv a datetime, vegyük UTC-nek
     if exp.tzinfo is None:
         exp = exp.replace(tzinfo=timezone.utc)
-    return datetime.now(timezone.utc) >= exp
-
+    # A lejárat napjának VÉGÉIG elérhető: a tárolt dátum napjának 23:59:59 UTC-jéig
+    end_of_day = exp.replace(hour=23, minute=59, second=59, microsecond=0)
+    return datetime.now(timezone.utc) > end_of_day
 
 def _serialize(project: Project) -> PublicProject:
     ready = [v for v in project.videos if v.status == "ready"]
