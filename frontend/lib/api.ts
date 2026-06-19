@@ -41,6 +41,7 @@ export interface PublicProject {
   cover_image_url: string;
   brand: string;
   project_date: string;
+  expires_at: string | null;
   videos: Video[];
   folders: Folder[];
   images: Image[];
