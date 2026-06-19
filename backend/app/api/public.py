@@ -24,7 +24,6 @@ PACKAGES = {
 }
 
 
-# Lejárati e-mail márka szerint
 def _contact_email(project: Project) -> str:
     if project.brand == "contentbee":
         return "hello@contentbee.hu"
@@ -37,9 +36,9 @@ def _is_expired(project: Project) -> bool:
     exp = project.expires_at
     if exp.tzinfo is None:
         exp = exp.replace(tzinfo=timezone.utc)
-    # A lejárat napjának VÉGÉIG elérhető: a tárolt dátum napjának 23:59:59 UTC-jéig
     end_of_day = exp.replace(hour=23, minute=59, second=59, microsecond=0)
     return datetime.now(timezone.utc) > end_of_day
+
 
 def _serialize(project: Project) -> PublicProject:
     ready = [v for v in project.videos if v.status == "ready"]
@@ -72,7 +71,6 @@ def get_public_project(
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
-    # Lejárt? → anyagok elrejtve, kapcsolati üzenet
     if _is_expired(project):
         return {
             "expired": True,
@@ -145,6 +143,8 @@ def get_by_share(token: str, db: Session = Depends(get_db)):
             "title": project.title,
             "brand": project.brand,
             "contact_email": _contact_email(project),
+            "payment_mode": project.payment_mode,
+            "slug": project.slug,
         }
     return {"locked": False, "project": _serialize(project).model_dump()}
 
@@ -162,7 +162,6 @@ def start_payment(slug: str, payload: dict, db: Session = Depends(get_db)):
     if not pkg:
         raise HTTPException(status_code=400, detail="Invalid package")
 
-    # Egyedi fizetési azonosító: projekt + csomag + időbélyeg
     ts = int(datetime.now(timezone.utc).timestamp())
     payment_request_id = f"{project.id}_{pkg_code}_{ts}"
 
@@ -200,6 +199,17 @@ async def barion_callback(request: Request, db: Session = Depends(get_db)):
     )
 
     # Tartalék: ha mégis a body-ban jönne
+    if not payment_id:
+        try:
+            body = await request.json()
+            payment_id = body.get("PaymentId") or body.get("paymentId")
+        except Exception:
+            try:
+                form = await request.form()
+                payment_id = form.get("PaymentId") or form.get("paymentId")
+            except Exception:
+                payment_id = None
+
     if not payment_id:
         print("[barion] no payment_id", flush=True)
         return {"ok": True}
