@@ -177,7 +177,7 @@ export function PortalView({
                 <p className="mt-6 text-sm text-mist">
                   Questions? Contact us at{" "}
                   
-                    href={`mailto:${expiredContactEmail}`}
+                    <a href={`mailto:${expiredContactEmail}`}
                     className="text-bone underline underline-offset-4 transition hover:text-ember"
                   >
                     {expiredContactEmail}
