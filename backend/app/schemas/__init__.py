@@ -95,6 +95,7 @@ class ProjectUpdate(BaseModel):
     password: Optional[str] = None  # "" clears password
     project_date: Optional[str] = None
     expires_at: Optional[datetime] = None
+    payment_mode: Optional[str] = None
 
 
 class ProjectSummary(BaseModel):
@@ -108,6 +109,7 @@ class ProjectSummary(BaseModel):
     brand: str = "hype"
     project_date: str = ""
     expires_at: Optional[datetime] = None
+    payment_mode: str = "contact"
     has_password: bool = False
 
 
