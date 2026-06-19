@@ -9,6 +9,7 @@ import {
   X,
   ChevronLeft,
   ChevronRight,
+  Info,
 } from "lucide-react";
 import { PublicProject, Video, Image as ImageType, startPayment } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -52,6 +53,17 @@ export function PortalView({
     .filter((g) => g.videos.length > 0);
 
   const allImages = project.images || [];
+  // Hátralévő napok a lejáratig (csak ha nem lejárt nézet)
+  function daysUntilExpiry(): number | null {
+    if (!project.expires_at) return null;
+    const exp = new Date(project.expires_at);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const expDay = new Date(exp);
+    expDay.setHours(0, 0, 0, 0);
+    return Math.round((expDay.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+  }
+  const remainingDays = isExpired ? null : daysUntilExpiry();
   const looseImages = allImages.filter((i) => !i.folder_id);
   const foldersWithImages = folders
     .map((f) => ({
@@ -156,6 +168,30 @@ export function PortalView({
           )}
         </div>
       </section>
+
+      </div>
+      </section>
+
+      {/* ---------- Elérhetőség sáv ---------- */}
+      {!isExpired && remainingDays !== null && (
+        <div className="border-b border-ink-line bg-ink-card">
+          <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-6 py-3">
+            <span className="text-sm text-mist">
+              {remainingDays > 0
+                ? `Az anyagok még ${remainingDays} napig elérhetők`
+                : "Az anyagok ma járnak le"}
+            </span>
+            
+              href="#legal"
+              className="flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-eyebrow text-mist transition hover:text-bone"
+            >
+              <Info className="h-3.5 w-3.5" />
+              Részletek
+            </a>
+          </div>
+        </div>
+      )}
+
 
       {/* ---------- Expired ---------- */}
       {isExpired && (
@@ -262,6 +298,29 @@ export function PortalView({
           </div>
         </section>
       )}
+
+      {!isExpired && (
+        <section id="legal" className="mx-auto max-w-3xl px-6 py-16">
+          <div className="border-t border-ink-line pt-10">
+            <h2 className="font-display text-xl text-bone sm:text-2xl">
+              Elérhetőség és felhasználási feltételek
+            </h2>
+            <div className="mt-4 space-y-3 text-sm leading-relaxed text-mist">
+              <p>
+                [Teszt szöveg] Ez a hely a hosszabb jogi / felhasználási
+                szövegnek van fenntartva. Ide kerül majd a tényleges tartalom az
+                anyagok elérhetőségéről, a felhasználás feltételeiről és minden
+                egyéb jogi tudnivalóról.
+              </p>
+              <p>
+                [Teszt szöveg] Lorem ipsum — a végleges szöveget később adod meg,
+                a helye és a formázása már kész.
+              </p>
+            </div>
+          </div>
+        </section>
+      )}
+  
 
       <footer className="mx-auto max-w-6xl px-6 pb-16 pt-4">
         <p className="font-mono text-xs uppercase tracking-eyebrow text-mist">
