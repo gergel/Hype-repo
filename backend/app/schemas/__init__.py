@@ -69,16 +69,13 @@ class FolderUpdate(BaseModel):
 
 
 # ---------- Project ----------
-class PublicProject(BaseModel):
-    id: str
-    slug: str
+class ProjectBase(BaseModel):
     title: str
-    client_name: str
-    description: str
-    cover_image_url: str
+    client_name: str = ""
+    description: str = ""
+    cover_image_url: str = ""
     brand: str = "hype"
     project_date: str = ""
-    expires_at: Optional[datetime] = None
 
 
 class ProjectCreate(ProjectBase):
@@ -132,6 +129,7 @@ class PublicProject(BaseModel):
     cover_image_url: str
     brand: str = "hype"
     project_date: str = ""
+    expires_at: Optional[datetime] = None
     videos: List[VideoOut] = []
     folders: List[FolderOut] = []
     images: List[ImageOut] = []
