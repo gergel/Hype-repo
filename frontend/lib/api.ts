@@ -110,7 +110,14 @@ export async function unlockProject(slug: string, password: string) {
 }
 
 export async function getByShare(token: string) {
-  return req<{ locked: boolean; project: PublicProject }>(`/public/share/${token}`);
+  return req<{
+    locked: boolean;
+    expired?: boolean;
+    project?: PublicProject;
+    title?: string;
+    brand?: string;
+    contact_email?: string;
+  }>(`/public/share/${token}`);
 }
 
 export async function getVideoDownloadUrl(videoId: string): Promise<string> {
