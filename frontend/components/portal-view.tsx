@@ -304,12 +304,18 @@ export function PortalView({
             </h2>
             <div className="mt-4 space-y-3 text-sm leading-relaxed text-mist">
               <p>
-                Az elkészült fájlokat a HypeClient rendszerében 30 napig díjmentesen elérheted és letöltheted.
-                A 30 nap lejárta után az online hozzáférés megszűnik, kivéve, ha tárhelycsomagot rendelsz.
-                Fizetős előfizetés nem indul automatikusan.
+                Az elkészült fájlokat a HypeClient rendszerében 30 napig díjmentesen elérheted és letöltheted. 
+                A 30 nap lejárta után az online hozzáférés megszűnik, kivéve, ha tárhelycsomagot rendelsz. 
+                Fizetős előfizetés nem indul automatikusan. 
                 A fájlokat ezt követően további 3 hónapig archiváljuk, majd véglegesen töröljük, ezért kérjük, időben gondoskodj a letöltésükről vagy hosszabb távú tárolásukról.
               </p>
             </div>
+            <button
+              onClick={() => setTermsOpen(true)}
+              className="mt-5 rounded-full border border-ink-line px-5 py-2.5 text-sm text-bone transition hover:border-ember/60"
+            >
+              Teljes felhasználási feltételek
+            </button>
           </div>
         </section>
       )}
@@ -329,6 +335,7 @@ export function PortalView({
           onNavigate={(idx) => setLightbox({ images: lightbox.images, index: idx })}
         />
       )}
+      {termsOpen && <TermsModal onClose={() => setTermsOpen(false)} />}
     </main>
   );
 }
@@ -596,6 +603,8 @@ function ImageLightbox({
   );
 }
 
+const [termsOpen, setTermsOpen] = useState(false);
+
 function DownloadAllButton({
   videos,
   images,
@@ -699,5 +708,158 @@ function PaymentPackages({ slug, accent }: { slug: string; accent?: string }) {
         </button>
       ))}
     </div>
+  );
+}
+
+
+function TermsModal({ onClose }: { onClose: () => void }) {
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    window.addEventListener("keydown", onKey);
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = "";
+    };
+  }, [onClose]);
+
+  return (
+    <AnimatePresence>
+      <motion.div
+        className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto bg-black/80 backdrop-blur-sm p-4 sm:p-8"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        onClick={onClose}
+      >
+        <motion.div
+          className="relative my-8 w-full max-w-2xl rounded-2xl border border-ink-line bg-ink-card p-6 sm:p-10"
+          initial={{ scale: 0.97, opacity: 0, y: 12 }}
+          animate={{ scale: 1, opacity: 1, y: 0 }}
+          exit={{ scale: 0.97, opacity: 0, y: 12 }}
+          transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button
+            aria-label="Bezárás"
+            onClick={onClose}
+            className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full border border-ink-line text-mist transition hover:bg-white/5 hover:text-bone"
+          >
+            <X className="h-5 w-5" />
+          </button>
+
+          <h2 className="pr-12 font-display text-2xl text-bone">
+            Tájékoztató az elkészült anyagok online eléréséről és megőrzéséről
+          </h2>
+
+          <div className="mt-6 space-y-5 text-sm leading-relaxed text-mist">
+            <p>
+              Üdvözlünk a HypeClient online rendszerében! A HypeClient a Hype
+              Productions Kft. által üzemeltetett online ügyfél- és fájlkezelő
+              szolgáltatás.
+            </p>
+            <p>
+              A HypeClient rendszerébe feltöltött elkészült anyagok a feltöltésről
+              szóló értesítés megküldésétől számított 30 napon keresztül díjmentesen
+              elérhetők és letölthetők. A díjmentes hozzáférési időszak alatt az
+              anyagokat megtekintheted és letöltheted. Javasoljuk, hogy a megőrizni
+              kívánt fájlokat ezen időszakon belül töltsd le, és gondoskodj azok saját
+              eszközön vagy más, általad választott tárhelyen történő biztonságos
+              tárolásáról.
+            </p>
+
+            <div>
+              <h3 className="font-display text-base text-bone">
+                Az online hozzáférés meghosszabbítása
+              </h3>
+              <p className="mt-2">
+                A 30 napos díjmentes időszak lejártát követően az online hozzáférés
+                megszűnik, kivéve, ha az ügyfél külön tárhelycsomagot választ és annak
+                igénybevételét kifejezetten megrendeli. A díjmentes időszak lejárta nem
+                eredményez automatikusan fizetős előfizetést vagy más díjfizetési
+                kötelezettséget. Fizetési kötelezettség kizárólag az ügyfél kifejezett
+                megrendelése alapján keletkezik.
+              </p>
+              <p className="mt-2">
+                Az elérhető tárhelycsomagok, azok díjai és részletes feltételei a
+                HypeClient felületén tekinthetők meg. Az előfizetés vagy tárhelycsomag
+                megrendelése a HypeClient felületén keresztül történik, a kapcsolódó
+                bankkártyás fizetések lebonyolítását pedig a Barion rendszere végzi. A
+                bankkártyaadatok kezelése és a fizetési tranzakciók feldolgozása a Barion
+                biztonságos fizetési felületén történik, amelyért és annak működéséért a
+                Barion Payment Zrt. felelős. A Hype Productions Kft. a bankkártyaadatokat
+                nem tárolja és azokhoz nem fér hozzá.
+              </p>
+            </div>
+
+            <div>
+              <h3 className="font-display text-base text-bone">
+                Az anyagok archivált megőrzése
+              </h3>
+              <p className="mt-2">
+                Amennyiben az ügyfél nem rendeli meg az online hozzáférés
+                meghosszabbítását, a 30 napos díjmentes időszak lejártát követően az
+                anyagok online elérhetősége megszűnik. Ezt követően a Hype Productions
+                Kft. az anyagokat további 3 hónapig archivált, az ügyfél által közvetlenül
+                nem hozzáférhető tárhelyen őrzi meg.
+              </p>
+              <p className="mt-2">
+                Az archivált időszak alatt az anyagok ismételt hozzáférhetővé tétele vagy
+                visszaállítása külön ügyfélkérelemre, a Hype Productions Kft.
+                visszaigazolása alapján történhet. A visszaállításhoz kapcsolódó esetleges
+                díjakról, teljesítési határidőkről és egyéb feltételekről a Hype
+                Productions Kft. előzetesen tájékoztatást ad.
+              </p>
+            </div>
+
+            <div>
+              <h3 className="font-display text-base text-bone">Végleges törlés</h3>
+              <p className="mt-2">
+                A három hónapos archivált megőrzési időszak lejártát követően az anyagok
+                és azok rendelkezésre álló másolatai a HypeClient rendszeréből, valamint a
+                Hype Productions Kft. által használt aktív és archivált tárhelyekről
+                véglegesen törlésre kerülnek. A törlést követően az anyagok
+                visszaállítására, helyreállítására vagy ismételt rendelkezésre bocsátására
+                nincs lehetőség.
+              </p>
+              <p className="mt-2">
+                Kérjük, hogy amennyiben az anyagokat hosszabb távon is meg kívánod őrizni:
+                töltsd le azokat a 30 napos díjmentes hozzáférési időszakon belül;
+                gondoskodj saját biztonsági másolat készítéséről; vagy válassz a
+                HypeClient felületén elérhető online tárhelycsomagok közül.
+              </p>
+            </div>
+
+            <div>
+              <h3 className="font-display text-base text-bone">Adatkezelés</h3>
+              <p className="mt-2">
+                Amennyiben az elkészült anyagok személyes adatokat tartalmaznak, azok
+                kezelése és megőrzése a Hype Productions Kft. mindenkor hatályos
+                Adatkezelési Tájékoztatójában, valamint az alkalmazandó szerződéses
+                feltételekben foglaltak szerint történik.
+              </p>
+              <p className="mt-2">
+                A HypeClient online tárhelyszolgáltatás részletes feltételeit, díjait, a
+                szolgáltatás igénybevételének és megszüntetésének szabályait, valamint a
+                felek jogait és kötelezettségeit az Általános Szerződési Feltételek
+                tartalmazzák.
+              </p>
+              <p className="mt-2">
+                Felhívjuk a figyelmedet, hogy hosszú távú megőrzés esetén ne hagyatkozz
+                kizárólag a HypeClient online vagy archivált tárolási rendszerére. A
+                megőrizni kívánt anyagokról minden esetben készíts saját biztonsági
+                másolatot.
+              </p>
+            </div>
+
+            <p className="border-t border-ink-line pt-4 text-xs text-mist">
+              A HypeClient szolgáltatás üzemeltetője: Hype Productions Kft.
+            </p>
+          </div>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
   );
 }
