@@ -304,14 +304,10 @@ export function PortalView({
             </h2>
             <div className="mt-4 space-y-3 text-sm leading-relaxed text-mist">
               <p>
-                [Teszt szöveg] Ez a hely a hosszabb jogi / felhasználási
-                szövegnek van fenntartva. Ide kerül majd a tényleges tartalom az
-                anyagok elérhetőségéről, a felhasználás feltételeiről és minden
-                egyéb jogi tudnivalóról.
-              </p>
-              <p>
-                [Teszt szöveg] Lorem ipsum — a végleges szöveget később adod meg,
-                a helye és a formázása már kész.
+                Az elkészült fájlokat a HypeClient rendszerében 30 napig díjmentesen elérheted és letöltheted.
+                A 30 nap lejárta után az online hozzáférés megszűnik, kivéve, ha tárhelycsomagot rendelsz.
+                Fizetős előfizetés nem indul automatikusan.
+                A fájlokat ezt követően további 3 hónapig archiváljuk, majd véglegesen töröljük, ezért kérjük, időben gondoskodj a letöltésükről vagy hosszabb távú tárolásukról.
               </p>
             </div>
           </div>
