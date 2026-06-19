@@ -1,7 +1,15 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Download, ArrowDown, Loader2, ChevronDown, X } from "lucide-react";
+import {
+  Download,
+  ArrowDown,
+  Loader2,
+  ChevronDown,
+  X,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
 import { PublicProject, Video, Image as ImageType } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { VideoCard } from "@/components/video-card";
@@ -18,7 +26,7 @@ export function PortalView({
   expiredContactEmail?: string;
 }) {
   const [active, setActive] = useState<Video | null>(null);
-  const [lightbox, setLightbox] = useState<ImageType | null>(null);
+  const [lightbox, setLightbox] = useState<{ images: ImageType[]; index: number } | null>(null);
   const hasCustomCover = !!project.cover_image_url;
   const isExpired = !!expiredContactEmail;
 
@@ -160,7 +168,7 @@ export function PortalView({
             <p className="mt-4 text-base leading-relaxed text-mist">
               If you need access to the materials again, please contact us at{" "}
               
-                <a href={`mailto:${expiredContactEmail}`}
+                href={`mailto:${expiredContactEmail}`}
                 className="text-bone underline underline-offset-4 transition hover:text-ember"
               >
                 {expiredContactEmail}
@@ -216,7 +224,10 @@ export function PortalView({
 
           <div className="space-y-12">
             {looseImages.length > 0 && (
-              <ImageGrid images={looseImages} onOpen={setLightbox} />
+              <ImageGrid
+                images={looseImages}
+                onOpen={(imgs, idx) => setLightbox({ images: imgs, index: idx })}
+              />
             )}
 
             {foldersWithImages.map(({ folder, images }) => (
@@ -224,7 +235,7 @@ export function PortalView({
                 key={folder.id}
                 name={folder.name}
                 images={images}
-                onOpen={setLightbox}
+                onOpen={(imgs, idx) => setLightbox({ images: imgs, index: idx })}
                 accent={accent}
               />
             ))}
@@ -240,7 +251,12 @@ export function PortalView({
 
       {active && <VideoPlayer video={active} onClose={() => setActive(null)} />}
       {lightbox && (
-        <ImageLightbox image={lightbox} onClose={() => setLightbox(null)} />
+        <ImageLightbox
+          images={lightbox.images}
+          index={lightbox.index}
+          onClose={() => setLightbox(null)}
+          onNavigate={(idx) => setLightbox({ images: lightbox.images, index: idx })}
+        />
       )}
     </main>
   );
@@ -310,7 +326,7 @@ function ImageFolderSection({
 }: {
   name: string;
   images: ImageType[];
-  onOpen: (img: ImageType) => void;
+  onOpen: (images: ImageType[], index: number) => void;
   accent?: string;
 }) {
   const [open, setOpen] = useState(true);
@@ -361,14 +377,14 @@ function ImageGrid({
   onOpen,
 }: {
   images: ImageType[];
-  onOpen: (img: ImageType) => void;
+  onOpen: (images: ImageType[], index: number) => void;
 }) {
   return (
     <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-      {images.map((img) => (
+      {images.map((img, i) => (
         <button
           key={img.id}
-          onClick={() => onOpen(img)}
+          onClick={() => onOpen(images, i)}
           className="group relative aspect-square overflow-hidden rounded-2xl border border-ink-line bg-ink-card"
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -385,13 +401,38 @@ function ImageGrid({
 }
 
 function ImageLightbox({
-  image,
+  images,
+  index,
   onClose,
+  onNavigate,
 }: {
-  image: ImageType;
+  images: ImageType[];
+  index: number;
   onClose: () => void;
+  onNavigate: (index: number) => void;
 }) {
   const [preparing, setPreparing] = useState(false);
+  const image = images[index];
+  const hasPrev = index > 0;
+  const hasNext = index < images.length - 1;
+
+  function goPrev() {
+    if (hasPrev) onNavigate(index - 1);
+  }
+  function goNext() {
+    if (hasNext) onNavigate(index + 1);
+  }
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "ArrowLeft") goPrev();
+      else if (e.key === "ArrowRight") goNext();
+      else if (e.key === "Escape") onClose();
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [index, images.length]);
 
   async function handleDownload() {
     if (preparing) return;
@@ -415,16 +456,44 @@ function ImageLightbox({
         <button
           aria-label="Close"
           onClick={onClose}
-          className="absolute right-5 top-5 z-10 flex h-11 w-11 items-center justify-center rounded-full border border-white/15 text-bone transition hover:bg-white/10"
+          className="absolute right-5 top-5 z-20 flex h-11 w-11 items-center justify-center rounded-full border border-white/15 text-bone transition hover:bg-white/10"
         >
           <X className="h-5 w-5" />
         </button>
+
+        {hasPrev && (
+          <button
+            aria-label="Previous"
+            onClick={(e) => {
+              e.stopPropagation();
+              goPrev();
+            }}
+            className="absolute left-3 top-1/2 z-20 flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full border border-white/15 text-bone transition hover:bg-white/10 sm:left-6"
+          >
+            <ChevronLeft className="h-6 w-6" />
+          </button>
+        )}
+
+        {hasNext && (
+          <button
+            aria-label="Next"
+            onClick={(e) => {
+              e.stopPropagation();
+              goNext();
+            }}
+            className="absolute right-3 top-1/2 z-20 flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full border border-white/15 text-bone transition hover:bg-white/10 sm:right-6"
+          >
+            <ChevronRight className="h-6 w-6" />
+          </button>
+        )}
+
         <motion.div
+          key={image.id}
           className="flex max-h-full max-w-5xl flex-col items-center gap-4"
           initial={{ scale: 0.96, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0.96, opacity: 0 }}
-          transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+          transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
           onClick={(e) => e.stopPropagation()}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -433,18 +502,23 @@ function ImageLightbox({
             alt={image.title}
             className="max-h-[78vh] w-auto rounded-2xl object-contain"
           />
-          <button
-            onClick={handleDownload}
-            disabled={preparing}
-            className="flex min-w-[160px] shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-full bg-bone px-6 py-3 text-sm font-medium text-ink transition hover:bg-white disabled:opacity-60"
-          >
-            {preparing ? (
-              <Loader2 className="h-5 w-5 animate-spin" />
-            ) : (
-              <Download className="h-5 w-5" />
-            )}
-            {preparing ? "Preparing…" : "Download"}
-          </button>
+          <div className="flex items-center gap-4">
+            <span className="font-mono text-xs text-mist">
+              {index + 1} / {images.length}
+            </span>
+            <button
+              onClick={handleDownload}
+              disabled={preparing}
+              className="flex min-w-[160px] shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-full bg-bone px-6 py-3 text-sm font-medium text-ink transition hover:bg-white disabled:opacity-60"
+            >
+              {preparing ? (
+                <Loader2 className="h-5 w-5 animate-spin" />
+              ) : (
+                <Download className="h-5 w-5" />
+              )}
+              {preparing ? "Preparing…" : "Download"}
+            </button>
+          </div>
         </motion.div>
       </motion.div>
     </AnimatePresence>
