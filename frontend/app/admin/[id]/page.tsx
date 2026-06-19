@@ -63,6 +63,7 @@ export default function AdminProjectPage() {
     status: "live",
     brand: "hype",
     expires_at: "",
+    payment_mode: "contact",
   });
   const [shareUrl, setShareUrl] = useState("");
   const [saved, setSaved] = useState(false);
@@ -99,6 +100,7 @@ export default function AdminProjectPage() {
       slug: d.slug,
       brand: (d as never)["brand"] || "hype",
       expires_at: String((d as any)["expires_at"] || "").slice(0, 10),
+      payment_mode: (d as never)["payment_mode"] || "contact",
     }));
   }
   useEffect(() => {
@@ -480,6 +482,40 @@ function makeShare() {
                   })()}
                 </p>
               )}
+            </div>
+            <div>
+              <label className="font-mono text-[11px] uppercase tracking-eyebrow text-mist">
+                On expiry
+              </label>
+              <div className="mt-1.5 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setForm((f) => ({ ...f, payment_mode: "contact" }))}
+                  className={`flex-1 rounded-full border px-4 py-2 text-sm transition ${
+                    form.payment_mode === "contact"
+                      ? "border-ember bg-ember/10 text-bone"
+                      : "border-ink-line text-mist hover:text-bone"
+                  }`}
+                >
+                  Contact us
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setForm((f) => ({ ...f, payment_mode: "paid" }))}
+                  className={`flex-1 rounded-full border px-4 py-2 text-sm transition ${
+                    form.payment_mode === "paid"
+                      ? "border-ember bg-ember/10 text-bone"
+                      : "border-ink-line text-mist hover:text-bone"
+                  }`}
+                >
+                  Paid extension
+                </button>
+              </div>
+              <p className="mt-1.5 text-xs text-mist">
+                {form.payment_mode === "paid"
+                  ? "Clients can pay to extend access after expiry."
+                  : "Clients see a contact message after expiry."}
+              </p>
             </div>
             <div>
               <div className="flex items-center justify-between">
