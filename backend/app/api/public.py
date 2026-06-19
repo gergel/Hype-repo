@@ -1,6 +1,6 @@
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -11,9 +11,17 @@ from app.core.security import (
 )
 from app.models import Project, Video, Image
 from app.schemas import PublicProject, ProjectUnlock, VideoOut, FolderOut, ImageOut
-from app.services import storage
+from app.services import storage, barion
+from app.core.config import settings
 
 router = APIRouter(prefix="/api/public", tags=["public"])
+
+# Fizetési csomagok: kód → (napok, ár HUF, megnevezés)
+PACKAGES = {
+    "1month": {"days": 30, "amount": 6000, "label": "1 month extension"},
+    "180days": {"days": 180, "amount": 30000, "label": "180 days extension"},
+    "1year": {"days": 365, "amount": 50000, "label": "1 year extension"},
+}
 
 
 # Lejárati e-mail márka szerint
@@ -137,3 +145,83 @@ def get_by_share(token: str, db: Session = Depends(get_db)):
             "contact_email": _contact_email(project),
         }
     return {"locked": False, "project": _serialize(project).model_dump()}
+
+
+@router.post("/projects/{slug}/pay")
+def start_payment(slug: str, payload: dict, db: Session = Depends(get_db)):
+    project = db.query(Project).filter(Project.slug == slug).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Not found")
+    if project.payment_mode != "paid":
+        raise HTTPException(status_code=400, detail="Payment not enabled for this project")
+
+    pkg_code = payload.get("package")
+    pkg = PACKAGES.get(pkg_code)
+    if not pkg:
+        raise HTTPException(status_code=400, detail="Invalid package")
+
+    # Egyedi fizetési azonosító: projekt + csomag + időbélyeg
+    ts = int(datetime.now(timezone.utc).timestamp())
+    payment_request_id = f"{project.id}_{pkg_code}_{ts}"
+
+    base = settings.FRONTEND_URL.rstrip("/")
+    redirect_url = f"{base}/p/{project.slug}"
+    callback_url = f"{base}/api/public/barion/callback"
+
+    data = barion.start_payment(
+        payment_request_id=payment_request_id,
+        amount=pkg["amount"],
+        title=pkg["label"],
+        redirect_url=redirect_url,
+        callback_url=callback_url,
+    )
+
+    if data.get("Errors"):
+        raise HTTPException(status_code=502, detail="Payment provider error")
+
+    gateway_url = data.get("GatewayUrl")
+    if not gateway_url:
+        raise HTTPException(status_code=502, detail="No gateway URL")
+
+    return {"gateway_url": gateway_url}
+
+
+@router.post("/barion/callback")
+async def barion_callback(request: Request, db: Session = Depends(get_db)):
+    # A Barion POST-ban küldi a PaymentId-t (form vagy JSON)
+    payment_id = None
+    try:
+        body = await request.json()
+        payment_id = body.get("PaymentId")
+    except Exception:
+        form = await request.form()
+        payment_id = form.get("PaymentId")
+
+    if not payment_id:
+        return {"ok": True}  # nincs mit tenni, de 200-zal nyugtázunk
+
+    # Lekérdezzük a tényleges állapotot (a callback önmagában nem bizonyíték!)
+    state = barion.get_payment_state(payment_id)
+    status = state.get("Status")
+    request_id = state.get("PaymentRequestId") or ""
+
+    # Csak sikeres fizetésnél hosszabbítunk
+    if status == "Succeeded":
+        # request_id formátuma: "{project_id}_{pkg_code}_{ts}"
+        parts = request_id.split("_")
+        if len(parts) >= 2:
+            project_id = parts[0]
+            pkg_code = parts[1]
+            pkg = PACKAGES.get(pkg_code)
+            project = db.query(Project).get(project_id)
+            if project and pkg:
+                now = datetime.now(timezone.utc)
+                current = project.expires_at
+                if current and current.tzinfo is None:
+                    current = current.replace(tzinfo=timezone.utc)
+                # A későbbitől számolunk: mostani lejárat vagy ma, amelyik később van
+                base_date = current if (current and current > now) else now
+                project.expires_at = base_date + timedelta(days=pkg["days"])
+                db.commit()
+
+    return {"ok": True}
