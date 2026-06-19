@@ -181,7 +181,7 @@ export function PortalView({
                 : "Az anyagok ma járnak le"}
             </span>
             
-              href="#legal"
+              <a href="#legal"
               className="flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-eyebrow text-mist transition hover:text-bone"
             >
               <Info className="h-3.5 w-3.5" />
