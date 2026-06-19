@@ -125,6 +125,7 @@ function PortalContent() {
     const minimalProject: PublicProject = {
       id: "",
       expires_at: null,
+      payment_mode: "contact",
       slug,
       title: expired.title,
       client_name: "",
