@@ -72,6 +72,7 @@ export function PortalView({
     return Math.round((expDay.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
   }
   const remainingDays = isExpired ? null : daysUntilExpiry();
+  const isPaid = project.payment_mode === "paid";
 
   return (
     <main className="relative">
@@ -180,12 +181,15 @@ export function PortalView({
                 : "Az anyagok ma járnak le"}
             </span>
             
-              <a href="#legal"
-              className="flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-eyebrow text-mist transition hover:text-bone"
-            >
-              <Info className="h-3.5 w-3.5" />
-              Részletek
-            </a>
+              {isPaid && (
+              
+                <a href="#legal"
+                className="flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-eyebrow text-mist transition hover:text-bone"
+              >
+                <Info className="h-3.5 w-3.5" />
+                Részletek
+              </a>
+            )}
           </div>
         </div>
       )}
@@ -297,7 +301,7 @@ export function PortalView({
       )}
 
       {/* ---------- Jogi szöveg ---------- */}
-      {!isExpired && (
+      {!isExpired && isPaid && (
         <section id="legal" className="mx-auto max-w-3xl px-6 py-16">
           <div className="border-t border-ink-line pt-10">
             <h2 className="font-display text-xl text-bone sm:text-2xl">
