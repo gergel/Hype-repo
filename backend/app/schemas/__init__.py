@@ -69,14 +69,16 @@ class FolderUpdate(BaseModel):
 
 
 # ---------- Project ----------
-class ProjectBase(BaseModel):
+class PublicProject(BaseModel):
+    id: str
+    slug: str
     title: str
-    client_name: str = ""
-    description: str = ""
-    cover_image_url: str = ""
-    status: str = "draft"
+    client_name: str
+    description: str
+    cover_image_url: str
     brand: str = "hype"
     project_date: str = ""
+    expires_at: Optional[datetime] = None
 
 
 class ProjectCreate(ProjectBase):
