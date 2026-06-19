@@ -10,7 +10,7 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
-import { PublicProject, Video, Image as ImageType } from "@/lib/api";
+import { PublicProject, Video, Image as ImageType, startPayment } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { VideoCard } from "@/components/video-card";
 import { VideoPlayer } from "@/components/video-player";
@@ -21,9 +21,11 @@ const CONTENTBEE_ACCENT = "rgb(243, 199, 68)";
 export function PortalView({
   project,
   expiredContactEmail,
+  expiredPaymentMode,
 }: {
   project: PublicProject;
   expiredContactEmail?: string;
+  expiredPaymentMode?: string;
 }) {
   const [active, setActive] = useState<Video | null>(null);
   const [lightbox, setLightbox] = useState<{ images: ImageType[]; index: number } | null>(null);
@@ -155,7 +157,7 @@ export function PortalView({
         </div>
       </section>
 
-      {/* ---------- Expired üzenet ---------- */}
+      {/* ---------- Expired ---------- */}
       {isExpired && (
         <section className="mx-auto max-w-3xl px-6 py-20 sm:py-28">
           <div className="rounded-2xl border border-ink-line bg-ink-card p-8 sm:p-10 text-center">
@@ -165,16 +167,36 @@ export function PortalView({
             >
               This project is no longer available
             </h2>
-            <p className="mt-4 text-base leading-relaxed text-mist">
-              If you need access to the materials again, please contact us at{" "}
-              
-                <a href={`mailto:${expiredContactEmail}`}
-                className="text-bone underline underline-offset-4 transition hover:text-ember"
-              >
-                {expiredContactEmail}
-              </a>
-              .
-            </p>
+
+            {expiredPaymentMode === "paid" ? (
+              <>
+                <p className="mt-4 text-base leading-relaxed text-mist">
+                  To regain access to the materials, choose an extension below.
+                </p>
+                <PaymentPackages slug={project.slug} accent={accent} />
+                <p className="mt-6 text-sm text-mist">
+                  Questions? Contact us at{" "}
+                  
+                    href={`mailto:${expiredContactEmail}`}
+                    className="text-bone underline underline-offset-4 transition hover:text-ember"
+                  >
+                    {expiredContactEmail}
+                  </a>
+                  .
+                </p>
+              </>
+            ) : (
+              <p className="mt-4 text-base leading-relaxed text-mist">
+                If you need access to the materials again, please contact us at{" "}
+                
+                  href={`mailto:${expiredContactEmail}`}
+                  className="text-bone underline underline-offset-4 transition hover:text-ember"
+                >
+                  {expiredContactEmail}
+                </a>
+                .
+              </p>
+            )}
           </div>
         </section>
       )}
@@ -588,5 +610,45 @@ function ImagesDownloadButton({
       {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
       {busy ? "Preparing…" : label}
     </button>
+  );
+}
+
+function PaymentPackages({ slug, accent }: { slug: string; accent?: string }) {
+  const [busy, setBusy] = useState<string | null>(null);
+
+  const packages = [
+    { code: "1month", label: "1 month", price: "6 000 Ft" },
+    { code: "180days", label: "180 days", price: "30 000 Ft" },
+    { code: "1year", label: "1 year", price: "50 000 Ft" },
+  ];
+
+  async function pay(code: string) {
+    if (busy) return;
+    setBusy(code);
+    try {
+      const url = await startPayment(slug, code);
+      window.location.href = url;
+    } catch {
+      setBusy(null);
+    }
+  }
+
+  return (
+    <div className="mt-6 grid gap-3 sm:grid-cols-3">
+      {packages.map((p) => (
+        <button
+          key={p.code}
+          onClick={() => pay(p.code)}
+          disabled={!!busy}
+          className="flex flex-col items-center gap-1 rounded-2xl border border-ink-line bg-ink px-4 py-5 transition hover:border-ember/60 disabled:opacity-60"
+          style={busy === p.code && accent ? { borderColor: accent } : undefined}
+        >
+          <span className="font-display text-lg text-bone">{p.label}</span>
+          <span className="font-mono text-sm text-mist">
+            {busy === p.code ? "Redirecting…" : p.price}
+          </span>
+        </button>
+      ))}
+    </div>
   );
 }
