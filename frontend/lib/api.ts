@@ -56,6 +56,7 @@ export interface ProjectSummary {
   brand: string;
   project_date: string;
   expires_at: string | null;
+  payment_mode: string;
   has_password: boolean;
 }
 
@@ -128,6 +129,14 @@ export async function getVideoDownloadUrl(videoId: string): Promise<string> {
 export async function getImageDownloadUrl(imageId: string): Promise<string> {
   const data = await req<{ url: string }>(`/public/images/${imageId}/download`);
   return data.url;
+}
+
+export async function startPayment(slug: string, packageCode: string): Promise<string> {
+  const data = await req<{ gateway_url: string }>(`/public/projects/${slug}/pay`, {
+    method: "POST",
+    body: JSON.stringify({ package: packageCode }),
+  });
+  return data.gateway_url;
 }
 
 // ---- Auth + admin (token in localStorage) ----
