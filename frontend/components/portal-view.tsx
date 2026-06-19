@@ -73,6 +73,7 @@ export function PortalView({
     return Math.round((expDay.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
   }
   const remainingDays = isExpired ? null : daysUntilExpiry();
+  const isPaid = project.payment_mode === "paid";
 
   return (
     <main className="relative">
@@ -301,8 +302,8 @@ export function PortalView({
         </section>
       )}
 
-      {/* ---------- Jogi szöveg ---------- */}
-      {!isExpired && (
+      {/* ---------- Jogi szöveg (fizetős) ---------- */}
+      {!isExpired && isPaid && (
         <section id="legal" className="mx-auto max-w-3xl px-6 py-16">
           <div className="border-t border-ink-line pt-10">
             <h2 className="font-display text-xl text-bone sm:text-2xl">
@@ -332,6 +333,20 @@ export function PortalView({
                 ÁSZF
               </button>
             </div>
+          </div>
+        </section>
+      )}
+
+      {/* ---------- Csak ÁSZF (nem fizetős) ---------- */}
+      {!isExpired && !isPaid && (
+        <section id="legal" className="mx-auto max-w-3xl px-6 py-16">
+          <div className="border-t border-ink-line pt-10">
+            <button
+              onClick={() => setAszfOpen(true)}
+              className="rounded-full border border-ink-line px-5 py-2.5 text-sm text-bone transition hover:border-ember/60"
+            >
+              ÁSZF
+            </button>
           </div>
         </section>
       )}
