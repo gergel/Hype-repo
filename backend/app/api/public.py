@@ -51,6 +51,7 @@ def _serialize(project: Project) -> PublicProject:
         cover_image_url=project.cover_image_url,
         brand=project.brand,
         project_date=project.project_date,
+        expires_at=project.expires_at,
         videos=[VideoOut.model_validate(v) for v in ready],
         folders=[FolderOut.model_validate(f) for f in project.folders],
         images=[ImageOut.model_validate(i) for i in project.images],
