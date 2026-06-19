@@ -33,6 +33,7 @@ function PortalContent() {
     title: string;
     brand: string;
     contact_email: string;
+    payment_mode: string;
   } | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
@@ -47,6 +48,7 @@ function PortalContent() {
             title: data.title || "",
             brand: data.brand || "hype",
             contact_email: data.contact_email || "info@hypestab.hu",
+            payment_mode: data.payment_mode || "contact",
           });
           setLocked(false);
           setProject(null);
@@ -64,6 +66,7 @@ function PortalContent() {
             title: data.title || "",
             brand: data.brand || "hype",
             contact_email: data.contact_email || "info@hypestab.hu",
+            payment_mode: data.payment_mode || "contact",
           });
           setLocked(false);
           setProject(null);
@@ -136,6 +139,7 @@ function PortalContent() {
       <PortalView
         project={minimalProject}
         expiredContactEmail={expired.contact_email}
+        expiredPaymentMode={expired.payment_mode}
       />
     );
   }
