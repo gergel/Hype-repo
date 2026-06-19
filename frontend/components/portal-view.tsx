@@ -160,7 +160,7 @@ export function PortalView({
             <p className="mt-4 text-base leading-relaxed text-mist">
               If you need access to the materials again, please contact us at{" "}
               
-                href={`mailto:${expiredContactEmail}`}
+                <a href={`mailto:${expiredContactEmail}`}
                 className="text-bone underline underline-offset-4 transition hover:text-ember"
               >
                 {expiredContactEmail}
