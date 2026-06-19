@@ -201,15 +201,31 @@ async def barion_callback(request: Request, db: Session = Depends(get_db)):
 
     # Tartalék: ha mégis a body-ban jönne
     if not payment_id:
-        try:
-            body = await request.json()
-            payment_id = body.get("PaymentId") or body.get("paymentId")
-        except Exception:
-            try:
-                form = await request.form()
-                payment_id = form.get("PaymentId") or form.get("paymentId")
-            except Exception:
-                payment_id = None
-
-    if not payment_id:
+        print("[barion] no payment_id", flush=True)
         return {"ok": True}
+
+    state = barion.get_payment_state(payment_id)
+    status = state.get("Status")
+    request_id = state.get("PaymentRequestId") or ""
+    print(f"[barion] status={status} request_id={request_id}", flush=True)
+
+    if status == "Succeeded":
+        parts = request_id.split("_")
+        print(f"[barion] parts={parts}", flush=True)
+        if len(parts) >= 2:
+            project_id = parts[0]
+            pkg_code = parts[1]
+            pkg = PACKAGES.get(pkg_code)
+            project = db.query(Project).get(project_id)
+            print(f"[barion] project_found={bool(project)} pkg={pkg}", flush=True)
+            if project and pkg:
+                now = datetime.now(timezone.utc)
+                current = project.expires_at
+                if current and current.tzinfo is None:
+                    current = current.replace(tzinfo=timezone.utc)
+                base_date = current if (current and current > now) else now
+                project.expires_at = base_date + timedelta(days=pkg["days"])
+                db.commit()
+                print(f"[barion] extended to {project.expires_at}", flush=True)
+
+    return {"ok": True}
