@@ -100,6 +100,7 @@ export async function getPublicProject(slug: string, token?: string) {
     cover_image_url?: string;
     brand?: string;
     contact_email?: string;
+    payment_mode?: string;
   }>(`/public/projects/${slug}${q}`);
 }
 
@@ -118,6 +119,7 @@ export async function getByShare(token: string) {
     title?: string;
     brand?: string;
     contact_email?: string;
+    payment_mode?: string;
   }>(`/public/share/${token}`);
 }
 
