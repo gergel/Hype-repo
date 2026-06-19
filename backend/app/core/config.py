@@ -37,6 +37,7 @@ class Settings(BaseSettings):
     BARION_POS_KEY: str = ""
     BARION_ENV: str = "test"  # test | prod
     BARION_PAYEE: str = ""    # a Barion bolt email címe (ahova a pénz megy)
+    API_BASE_URL: str = ""   # a backend publikus címe (callback-hez)
 
     @property
     def BARION_API_BASE(self) -> str:
