@@ -140,31 +140,62 @@ export async function downloadImage(imageId: string, title?: string) {
 
 // Több kép: telón egyenként galériába (Web Share), gépen egy ZIP (gyors)
 export async function downloadImagesAll(
-  images: { id: string; title: string }[]
+  images: { id: string; title: string }[],
+  onProgress?: (done: number, total: number) => void
 ) {
   if (isMobileDevice()) {
+    let done = 0;
     for (const img of images) {
       await downloadImage(img.id, img.title);
+      done++;
+      if (onProgress) onProgress(done, images.length);
     }
     return;
   }
 
-  // Gépen: ZIP — párhuzamos letöltés, tömörítés nélkül (gyors)
+  // Gépen: ZIP — letöltés haladásjelzéssel, tömörítés nélkül (gyors)
   const zip = new JSZip();
+  const total = images.length;
+  let done = 0;
 
-  // 1) Minden kép letöltése PÁRHUZAMOSAN
-  const blobs = await Promise.all(
-    images.map(async (img, i) => {
+  const CONCURRENCY = 5;
+  let cursor = 0;
+
+  async function worker() {
+    while (cursor < images.length) {
+      const i = cursor++;
+      const img = images[i];
       try {
         const url = await getImageDownloadUrl(img.id);
         const res = await fetch(url, { mode: "cors" });
         const blob = await res.blob();
-        return { blob, title: img.title, index: i + 1 };
+        const ext = (blob.type.split("/")[1] || "jpg").split("+")[0];
+        const safeTitle = (img.title || `image-${i + 1}`).replace(/[^\w.-]+/g, "_");
+        zip.file(`${safeTitle}.${ext}`, blob, { compression: "STORE" });
       } catch {
-        return null;
+        // egy hibás kép kimarad
       }
-    })
+      done++;
+      if (onProgress) onProgress(done, total);
+    }
+  }
+
+  const workers = Array.from(
+    { length: Math.min(CONCURRENCY, images.length) },
+    () => worker()
   );
+  await Promise.all(workers);
+
+  const content = await zip.generateAsync({ type: "blob", compression: "STORE" });
+  const blobUrl = URL.createObjectURL(content);
+  const a = document.createElement("a");
+  a.href = blobUrl;
+  a.download = "photos.zip";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(blobUrl), 2000);
+}
 
   // 2) Hozzáadás a ZIP-hez tömörítés nélkül (STORE)
   for (const item of blobs) {
