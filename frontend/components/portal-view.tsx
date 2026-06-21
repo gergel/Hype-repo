@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Download,
@@ -525,6 +525,7 @@ function ImageLightbox({
 }) {
   const [preparing, setPreparing] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  const touchStartX = useRef<number | null>(null);
   const image = images[index];
   const hasPrev = index > 0;
   const hasNext = index < images.length - 1;
@@ -534,6 +535,18 @@ function ImageLightbox({
   }
   function goNext() {
     if (hasNext) onNavigate(index + 1);
+  }
+
+  function onTouchStart(e: React.TouchEvent) {
+    touchStartX.current = e.touches[0].clientX;
+  }
+  function onTouchEnd(e: React.TouchEvent) {
+    if (touchStartX.current === null) return;
+    const dx = e.changedTouches[0].clientX - touchStartX.current;
+    const THRESHOLD = 50; // px, ennél nagyobb húzás számít lapozásnak
+    if (dx > THRESHOLD) goPrev();
+    else if (dx < -THRESHOLD) goNext();
+    touchStartX.current = null;
   }
 
   useEffect(() => {
@@ -569,6 +582,8 @@ function ImageLightbox({
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         onClick={onClose}
+        onTouchStart={onTouchStart}
+        onTouchEnd={onTouchEnd}
       >
         <button
           aria-label="Close"
