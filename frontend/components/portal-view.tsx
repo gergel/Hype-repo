@@ -679,21 +679,44 @@ function DownloadAllButton({
   images: ImageType[];
 }) {
   const [busy, setBusy] = useState(false);
+  const [status, setStatus] = useState<string>("");
+  const startedAt = useRef<number>(0);
 
   async function downloadAll() {
     if (busy) return;
     setBusy(true);
     try {
-      for (const v of videos) {
-        if (!v.mp4_url) continue;
+      // 1) Videók egyenként
+      const playable = videos.filter((v) => v.mp4_url);
+      for (let i = 0; i < playable.length; i++) {
+        const v = playable[i];
+        setStatus(`Videó ${i + 1} / ${playable.length}`);
         await downloadVideo(v.id, v.mp4_url, `${v.title}.mp4`, v.size_bytes);
         await new Promise((r) => setTimeout(r, 800));
       }
+
+      // 2) Képek ZIP-be, haladásjelzéssel
       if (images.length > 0) {
-        await downloadImagesAll(images.map((i) => ({ id: i.id, title: i.title })));
+        startedAt.current = Date.now();
+        setStatus(`Képek 0 / ${images.length}`);
+        await downloadImagesAll(
+          images.map((i) => ({ id: i.id, title: i.title })),
+          (done, total) => {
+            if (done === 0) {
+              setStatus(`Képek 0 / ${total}`);
+              return;
+            }
+            const elapsed = (Date.now() - startedAt.current) / 1000;
+            const remaining = Math.round((elapsed / done) * (total - done));
+            const timeStr =
+              remaining < 60 ? `~${remaining} mp` : `~${Math.ceil(remaining / 60)} perc`;
+            setStatus(`Képek ${done} / ${total} · ${timeStr}`);
+          }
+        );
       }
     } finally {
       setBusy(false);
+      setStatus("");
     }
   }
 
@@ -701,7 +724,7 @@ function DownloadAllButton({
   return (
     <Button variant="primary" size="lg" onClick={downloadAll} disabled={!total || busy}>
       {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-      {busy ? "Preparing…" : "Download all"}
+      {busy ? status || "Preparing…" : "Download all"}
     </Button>
   );
 }
