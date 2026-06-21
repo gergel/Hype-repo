@@ -778,17 +778,7 @@ function ImagesDownloadButton({
     </button>
   );
 }
-  return (
-    <button
-      onClick={handleDownload}
-      disabled={busy}
-      className="flex shrink-0 items-center gap-2 whitespace-nowrap rounded-full bg-bone px-5 py-2.5 text-sm font-medium text-ink transition hover:bg-white disabled:opacity-60"
-    >
-      {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-      {busy ? "Preparing…" : label}
-    </button>
-  );
-}
+  
 
 function PaymentPackages({
   slug,
