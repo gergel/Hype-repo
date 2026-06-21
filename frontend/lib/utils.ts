@@ -91,7 +91,7 @@ export async function downloadVideo(
   }
 }
 
-// Egy kép letöltése: telón galériába (Web Share), gépen közvetlen letöltés
+// Egy kép letöltése: telón galériába (Web Share), gépen közvetlen letöltés (gyors)
 export async function downloadImage(imageId: string, title?: string) {
   const url = await getImageDownloadUrl(imageId);
 
@@ -138,18 +138,6 @@ export async function downloadImage(imageId: string, title?: string) {
   setTimeout(() => URL.revokeObjectURL(blobUrl), 2000);
 }
 
-  // Gépen (vagy ha a megosztás nem elérhető): letöltés blobból
-  const blobUrl = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = blobUrl;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(blobUrl), 2000);
-}
-
-// Több kép: telón egyenként galériába (Web Share), gépen egy ZIP
 // Több kép: telón egyenként galériába (Web Share), gépen egy ZIP (gyors)
 export async function downloadImagesAll(
   images: { id: string; title: string }[]
