@@ -45,10 +45,7 @@ class ImageOut(BaseModel):
     title: str
     folder_id: Optional[str] = None
     url: str
-    width: int
-    height: int
-    size_bytes: int
-    sort_order: int
+    thumbnail_url: str = ""
 
 
 # ---------- Folder ----------
