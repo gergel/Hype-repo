@@ -499,7 +499,7 @@ function ImageGrid({
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src={img.url}
+            src={img.thumbnail_url || img.url}
             alt={img.title}
             className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
           />
@@ -606,12 +606,23 @@ function ImageLightbox({
           transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
           onClick={(e) => e.stopPropagation()}
         >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={image.url}
-            alt={image.title}
-            className="max-h-[78vh] w-auto rounded-2xl object-contain"
-          />
+          <div className="relative flex max-h-[78vh] items-center justify-center">
+            {image.thumbnail_url && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={image.thumbnail_url}
+                alt=""
+                aria-hidden="true"
+                className="absolute inset-0 h-full w-full rounded-2xl object-contain blur-lg"
+              />
+            )}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={image.url}
+              alt={image.title}
+              className="relative max-h-[78vh] w-auto rounded-2xl object-contain"
+            />
+          </div>
           <div className="flex items-center gap-4">
             <span className="font-mono text-xs text-mist">
               {index + 1} / {images.length}
