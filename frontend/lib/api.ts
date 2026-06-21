@@ -26,6 +26,7 @@ export interface Image {
   title: string;
   folder_id: string | null;
   url: string;
+  thumbnail_url: string;
   width: number;
   height: number;
   size_bytes: number;
