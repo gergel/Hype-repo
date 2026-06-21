@@ -91,29 +91,52 @@ export async function downloadVideo(
   }
 }
 
-// Egy kép letöltése: telón galériába (Web Share), gépen letöltés blobból
+// Egy kép letöltése: telón galériába (Web Share), gépen közvetlen letöltés
 export async function downloadImage(imageId: string, title?: string) {
   const url = await getImageDownloadUrl(imageId);
+
+  // Gépen: nincs blob-fetch — a presigned URL attachment-ként jön,
+  // a böngésző azonnal letölti. Gyors, nincs hosszú "Preparing".
+  if (!isMobileDevice()) {
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = title || "image";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    return;
+  }
+
+  // Mobilon: a galériába mentéshez kell a fájl tartalma (Web Share)
   const res = await fetch(url, { mode: "cors" });
   const blob = await res.blob();
   const ext = (blob.type.split("/")[1] || "jpg").split("+")[0];
   const filename = `${title || "image"}.${ext}`;
 
-  if (isMobileDevice()) {
-    const file = new File([blob], filename, { type: blob.type || "image/jpeg" });
-    const nav = navigator as Navigator & {
-      canShare?: (data: { files: File[] }) => boolean;
-      share?: (data: { files: File[] }) => Promise<void>;
-    };
-    if (nav.canShare && nav.canShare({ files: [file] }) && nav.share) {
-      try {
-        await nav.share({ files: [file] });
-        return;
-      } catch {
-        return;
-      }
+  const file = new File([blob], filename, { type: blob.type || "image/jpeg" });
+  const nav = navigator as Navigator & {
+    canShare?: (data: { files: File[] }) => boolean;
+    share?: (data: { files: File[] }) => Promise<void>;
+  };
+  if (nav.canShare && nav.canShare({ files: [file] }) && nav.share) {
+    try {
+      await nav.share({ files: [file] });
+      return;
+    } catch {
+      return;
     }
   }
+
+  // Tartalék mobilon, ha a megosztás nem elérhető: blob letöltés
+  const blobUrl = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = blobUrl;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(blobUrl), 2000);
+}
 
   // Gépen (vagy ha a megosztás nem elérhető): letöltés blobból
   const blobUrl = URL.createObjectURL(blob);
