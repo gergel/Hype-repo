@@ -1,1110 +1,1121 @@
 "use client";
-import { useState, useEffect, useRef } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { useEffect, useState, useRef } from "react";
+import { useParams, useRouter } from "next/navigation";
 import {
-  Download,
-  ArrowDown,
-  Loader2,
-  ChevronDown,
-  X,
-  ChevronLeft,
-  ChevronRight,
-  Info,
+  uploadCover,
+  deleteCover,
+  createFolder,
+  updateFolder,
+  deleteFolder,
+  setVideoFolder,
+  uploadImage,
+  deleteImage,
+  setImageFolder,
+  Folder,
+  Image as ImageType,
+} from "@/lib/api";
+import {
+  GripVertical,
+  Upload,
+  Trash2,
+  Replace,
+  Link2,
+  Save,
+  FolderPlus,
+  Folder as FolderIcon,
+  ArrowLeft,
+  Pencil,
 } from "lucide-react";
-import { PublicProject, Video, Image as ImageType, startPayment } from "@/lib/api";
+import {
+  getProjectDetail,
+  updateProject,
+  uploadVideo,
+  replaceVideo,
+  deleteVideo,
+  reorderVideos,
+  deleteProject,
+  Video,
+} from "@/lib/api";
 import { Button } from "@/components/ui/button";
-import { VideoCard } from "@/components/video-card";
-import { VideoPlayer } from "@/components/video-player";
-import { downloadVideo, downloadImage, downloadImagesAll } from "@/lib/utils";
+import { formatDuration, formatBytes } from "@/lib/utils";
 
-const CONTENTBEE_ACCENT = "rgb(243, 199, 68)";
+export default function AdminProjectPage() {
+  const id = useParams().id as string;
+  const router = useRouter();
+  const [data, setData] = useState<Awaited<ReturnType<typeof getProjectDetail>> | null>(
+    null
+  );
+  const [videos, setVideos] = useState<Video[]>([]);
+  const [images, setImages] = useState<ImageType[]>([]);
+  const [folders, setFolders] = useState<Folder[]>([]);
+  const [currentFolder, setCurrentFolder] = useState<string | null>(null);
+  const [selectedVideos, setSelectedVideos] = useState<Set<string>>(new Set());
+  const [selectedImages, setSelectedImages] = useState<Set<string>>(new Set());
+  const [form, setForm] = useState({
+    title: "",
+    client_name: "",
+    project_date: "",
+    description: "",
+    cover_image_url: "",
+    slug: "",
+    password: "",
+    status: "live",
+    brand: "hype",
+    expires_at: "",
+    payment_mode: "contact",
+  });
+  const [shareUrl, setShareUrl] = useState("");
+  const [saved, setSaved] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [uploads, setUploads] = useState<{ name: string; percent: number }[]>([]);
+  const [batch, setBatch] = useState<{
+    total: number;
+    done: number;
+    startedAt: number;
+  } | null>(null);
+  const replaceRef = useRef<HTMLInputElement>(null);
+  const replaceId = useRef<string>("");
+  const coverRef = useRef<HTMLInputElement>(null);
+  const dragId = useRef<string>("");
 
-export function PortalView({
-  project,
-  expiredContactEmail,
-  expiredPaymentMode,
-}: {
-  project: PublicProject;
-  expiredContactEmail?: string;
-  expiredPaymentMode?: string;
-}) {
-  const [active, setActive] = useState<Video | null>(null);
-  const [lightbox, setLightbox] = useState<{ images: ImageType[]; index: number } | null>(null);
-  const [termsOpen, setTermsOpen] = useState(false);
-  const [aszfOpen, setAszfOpen] = useState(false);
-  const hasCustomCover = !!project.cover_image_url;
-  const isExpired = !!expiredContactEmail;
+  const [prompt, setPrompt] = useState<{
+    title: string;
+    value: string;
+    onConfirm: (value: string) => void;
+  } | null>(null);
+  const [confirmDialog, setConfirmDialog] = useState<{
+    message: string;
+    onConfirm: () => void;
+  } | null>(null);
 
-  const isContentBee = project.brand === "contentbee";
-  const brandLabel = isContentBee ? "ContentBee" : "HYPE Productions";
-  const accent = isContentBee ? CONTENTBEE_ACCENT : undefined;
-  const defaultCoverMobile = isContentBee
-    ? "/contentbee-mobile.png"
-    : "/default-cover-mobile.PNG";
-  const defaultCoverDesktop = isContentBee
-    ? "/contentbee-desktop.png"
-    : "/default-cover-desktop.png";
+  async function refresh() {
+    const d = await getProjectDetail(id);
+    setData(d);
+    setVideos(d.videos);
+    setImages((d as never)["images"] || []);
+    setFolders((d as never)["folders"] || []);
+    setForm((f) => ({
+      ...f,
+      title: d.title,
+      client_name: d.client_name,
+      project_date: (d as never)["project_date"] || "",
+      description: d.description,
+      cover_image_url: d.cover_image_url,
+      slug: d.slug,
+      brand: (d as never)["brand"] || "hype",
+      expires_at: String((d as any)["expires_at"] || "").slice(0, 10),
+      payment_mode: (d as never)["payment_mode"] || "contact",
+    }));
+  }
+  useEffect(() => {
+    refresh();
+    const t = setInterval(() => {
+      getProjectDetail(id).then((d) => {
+        if (d.videos.some((v) => v.status === "processing")) setVideos(d.videos);
+      });
+    }, 5000);
+    return () => clearInterval(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
 
-  const folders = project.folders || [];
-  const looseVideos = project.videos.filter((v) => !v.folder_id);
-  const foldersWithVideos = folders
-    .map((f) => ({
-      folder: f,
-      videos: project.videos.filter((v) => v.folder_id === f.id),
-    }))
-    .filter((g) => g.videos.length > 0);
+  async function save() {
+    const payload: Record<string, unknown> = { ...form };
+    if (!form.password) delete payload.password;
+    await updateProject(id, payload);
+    setForm((f) => ({ ...f, password: "" }));
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+    refresh();
+  }
 
-  const allImages = project.images || [];
-  const looseImages = allImages.filter((i) => !i.folder_id);
-  const foldersWithImages = folders
-    .map((f) => ({
-      folder: f,
-      images: allImages.filter((i) => i.folder_id === f.id),
-    }))
-    .filter((g) => g.images.length > 0);
 
-  function daysUntilExpiry(): number | null {
-    if (!project.expires_at) return null;
-    const exp = new Date(project.expires_at);
+  async function onChangeExpiry(value: string) {
+    setForm((f) => ({ ...f, expires_at: value }));
+    // value = "YYYY-MM-DD" → ISO a backendnek (a nap végét vesszük)
+    const iso = value ? new Date(value + "T23:59:59").toISOString() : null;
+    await updateProject(id, { expires_at: iso });
+    refresh();
+  }
+
+function daysLeft(): number | null {
+    if (!form.expires_at) return null;
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const expDay = new Date(exp);
-    expDay.setHours(0, 0, 0, 0);
-    return Math.round((expDay.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    const exp = new Date(form.expires_at + "T00:00:00");
+    exp.setHours(0, 0, 0, 0);
+    return Math.round((exp.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
   }
-  const remainingDays = isExpired ? null : daysUntilExpiry();
-  const isPaid = project.payment_mode === "paid";
+
+  async function clearPassword() {
+    await updateProject(id, { password: "" });
+    setForm((f) => ({ ...f, password: "" }));
+    refresh();
+  }
+
+  function cancelUploadNow() {
+    cancelUpload.current = true;
+    abortController.current?.abort();
+  }
+
+  async function onUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files || []);
+    const targetFolder = currentFolder;
+    if (e.target) e.target.value = ""; // reset, hogy ugyanazt újra lehessen választani
+
+    const imageFiles = files.filter((f) => f.type.startsWith("image/"));
+    const otherFiles = files.filter((f) => !f.type.startsWith("image/"));
+
+    // --- Képek: kötegelt feltöltés (egyszerre 2) összevont folyamatjelzővel ---
+    if (imageFiles.length > 0) {
+      const CONCURRENCY = 2;
+      let done = 0;
+      const startedAt = Date.now();
+      cancelUpload.current = false;
+      abortController.current = new AbortController();
+      setBatch({ total: imageFiles.length, done: 0, startedAt });
+
+      // A frissen feltöltött képeket pufferbe gyűjtjük, és időnként
+      // egyszerre tesszük a rácsba — így nem renderel minden képnél.
+      let buffer: ImageType[] = [];
+      const flushTimer = setInterval(() => {
+        if (buffer.length > 0) {
+          const toAdd = buffer;
+          buffer = [];
+          setImages((prev) => [...prev, ...toAdd]);
+        }
+      }, 1500);
+
+      let cursor = 0;
+      async function worker() {
+        while (cursor < imageFiles.length) {
+          if (cancelUpload.current) return; // leállítás: a hátralévőket kihagyjuk
+          const myIndex = cursor++;
+          const file = imageFiles[myIndex];
+          try {
+            const created = await uploadImage(
+              id,
+              file,
+              targetFolder,
+              abortController.current?.signal
+            );
+            if (created && (created as ImageType).id) {
+              buffer.push(created as ImageType);
+            }
+          } catch {
+            // megszakítás vagy hibás kép — ne állítsa meg a többit
+          }
+          done++;
+          if (done % 5 === 0 || done === imageFiles.length) {
+            setBatch((b) => (b ? { ...b, done } : b));
+          }
+        }
+      }
+      const workers = Array.from(
+        { length: Math.min(CONCURRENCY, imageFiles.length) },
+        () => worker()
+      );
+      await Promise.all(workers);
+
+      // utolsó puffer kiürítése
+      clearInterval(flushTimer);
+      if (buffer.length > 0) {
+        setImages((prev) => [...prev, ...buffer]);
+      }
+      setBatch(null);
+      abortController.current = null;
+    }
+
+    // --- Videók: egyesével, a meglévő folyamatjelzővel ---
+    for (const file of otherFiles) {
+      const name = file.name.replace(/\.[^.]+$/, "");
+      setUploads((u) => [...u, { name, percent: 0 }]);
+      try {
+        const result = await uploadVideo(id, file, name, (percent) => {
+          setUploads((u) =>
+            u.map((item) => (item.name === name ? { ...item, percent } : item))
+          );
+        });
+        if (targetFolder && result && (result as { id?: string }).id) {
+          await setVideoFolder((result as { id: string }).id, targetFolder);
+        }
+      } finally {
+        setTimeout(() => {
+          setUploads((u) => u.filter((item) => item.name !== name));
+        }, 1500);
+      }
+      // Videó után frissítünk (kevés van belőle)
+      refresh();
+    }
+  }
+
+  async function onCoverUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const { cover_image_url } = await uploadCover(id, file);
+    setForm((f) => ({ ...f, cover_image_url }));
+    refresh();
+  }
+
+  async function onDeleteCover() {
+    await deleteCover(id);
+    setForm((f) => ({ ...f, cover_image_url: "" }));
+    refresh();
+  }
+
+  async function onReplace(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (file && replaceId.current) {
+      await replaceVideo(replaceId.current, file);
+      refresh();
+    }
+  }
+
+  async function onDrop(targetId: string) {
+    const from = videos.findIndex((v) => v.id === dragId.current);
+    const to = videos.findIndex((v) => v.id === targetId);
+    if (from < 0 || to < 0 || from === to) return;
+    const next = [...videos];
+    const [moved] = next.splice(from, 1);
+    next.splice(to, 0, moved);
+    setVideos(next);
+    await reorderVideos(id, next.map((v) => v.id));
+  }
+
+function makeShare() {
+    const url = `${window.location.origin}/p/${form.slug}`;
+    setShareUrl(url);
+    navigator.clipboard?.writeText(url).catch(() => {});
+  }
+
+  function onDeleteProject() {
+    setConfirmDialog({
+      message:
+        "Are you sure you want to delete this project along with all of its videos and images? This cannot be undone.",
+      onConfirm: async () => {
+        await deleteProject(id);
+        router.push("/admin");
+      },
+    });
+  }
+
+  function onCreateFolder() {
+    setPrompt({
+      title: "New folder name",
+      value: "",
+      onConfirm: async (name) => {
+        if (!name.trim()) return;
+        await createFolder(id, name.trim());
+        refresh();
+      },
+    });
+  }
+
+  function onRenameFolder(folderId: string) {
+    const current = folders.find((f) => f.id === folderId);
+    setPrompt({
+      title: "New folder name",
+      value: current?.name || "",
+      onConfirm: async (name) => {
+        if (!name.trim()) return;
+        await updateFolder(folderId, { name: name.trim() });
+        refresh();
+      },
+    });
+  }
+
+  function onDeleteFolder(folderId: string) {
+    setConfirmDialog({
+      message: "Delete this folder and all videos and images inside it? This cannot be undone.",
+      onConfirm: async () => {
+        await deleteFolder(folderId);
+        if (currentFolder === folderId) setCurrentFolder(null);
+        refresh();
+      },
+    });
+  }
+
+  function onDeleteVideo(videoId: string) {
+    setConfirmDialog({
+      message: "Delete this video? This cannot be undone.",
+      onConfirm: async () => {
+        await deleteVideo(videoId);
+        refresh();
+      },
+    });
+  }
+
+  function onDeleteImage(imageId: string) {
+    setConfirmDialog({
+      message: "Delete this image? This cannot be undone.",
+      onConfirm: async () => {
+        await deleteImage(imageId);
+        refresh();
+      },
+    });
+  }
+
+  async function onRemoveFromFolder(videoId: string) {
+    await setVideoFolder(videoId, null);
+    refresh();
+  }
+
+  async function onRemoveImageFromFolder(imageId: string) {
+    await setImageFolder(imageId, null);
+    refresh();
+  }
+
+  function toggleVideo(videoId: string) {
+    setSelectedVideos((prev) => {
+      const next = new Set(prev);
+      if (next.has(videoId)) next.delete(videoId);
+      else next.add(videoId);
+      return next;
+    });
+  }
+
+  function toggleImage(imageId: string) {
+    setSelectedImages((prev) => {
+      const next = new Set(prev);
+      if (next.has(imageId)) next.delete(imageId);
+      else next.add(imageId);
+      return next;
+    });
+  }
+
+  function clearSelection() {
+    setSelectedVideos(new Set());
+    setSelectedImages(new Set());
+  }
+
+  function onDeleteSelected() {
+    const vIds = Array.from(selectedVideos);
+    const iIds = Array.from(selectedImages);
+    const total = vIds.length + iIds.length;
+    if (total === 0) return;
+    setConfirmDialog({
+      message: `Delete ${total} selected ${total === 1 ? "item" : "items"}? This cannot be undone.`,
+      onConfirm: async () => {
+        for (const vid of vIds) {
+          await deleteVideo(vid).catch(() => {});
+        }
+        for (const iid of iIds) {
+          await deleteImage(iid).catch(() => {});
+        }
+        clearSelection();
+        refresh();
+      },
+    });
+  }
+
+  if (!data) return null;
+  const portalUrl = `/p/${form.slug}`;
+
+  const visibleVideos = videos.filter((v) =>
+    currentFolder ? v.folder_id === currentFolder : !v.folder_id
+  );
+  const visibleImages = images.filter((i) =>
+    currentFolder ? i.folder_id === currentFolder : !i.folder_id
+  );
+  const openFolder = folders.find((f) => f.id === currentFolder) || null;
+  const selectedCount = selectedVideos.size + selectedImages.size;
 
   return (
-    <main className="relative">
-      {/* ---------- Hero ---------- */}
-      <section className="relative flex min-h-[88vh] items-end overflow-hidden">
-        <div className="absolute inset-0">
-          {hasCustomCover ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={project.cover_image_url}
-              alt=""
-              className="h-full w-full origin-center object-cover animate-drift"
-            />
-          ) : (
-            <>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={defaultCoverMobile}
-                alt=""
-                className="h-full w-full origin-center object-cover animate-drift sm:hidden"
+    <main className="mx-auto max-w-5xl px-6 py-12">
+      <a href="/admin" className="font-mono text-xs uppercase tracking-eyebrow text-mist">
+        ← All projects
+      </a>
+
+      <div className="mt-4 grid gap-8 lg:grid-cols-[1.1fr_1fr]">
+        {/* Settings */}
+        <section className="rounded-2xl border border-ink-line bg-ink-card p-6">
+          <h2 className="font-display text-xl text-bone">Project details</h2>
+          <div className="mt-5 space-y-3">
+            {[
+              ["title", "Project title"],
+              ["client_name", "Client name"],
+              ["project_date", "Date (e.g. 2026-06-17)"],
+              ["slug", "Portal slug"],
+            ].map(([key, label]) => (
+              <Field
+                key={key}
+                label={label}
+                value={(form as never)[key]}
+                onChange={(v) => setForm((f) => ({ ...f, [key]: v }))}
               />
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={defaultCoverDesktop}
-                alt=""
-                className="hidden h-full w-full origin-center object-cover animate-drift sm:block"
-              />
-            </>
-          )}
-          <div className="absolute inset-0 bg-gradient-to-t from-ink via-ink/40 to-ink/20" />
-          <div className="absolute inset-0 bg-gradient-to-r from-ink/60 to-transparent" />
-        </div>
+            ))}
 
-        <div className="relative mx-auto w-full max-w-6xl px-6 pb-16 sm:pb-24">
-          <motion.p
-            initial={{ opacity: 0, y: 14 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
-            className="font-mono text-xs uppercase tracking-eyebrow"
-            style={{ color: isContentBee ? CONTENTBEE_ACCENT : undefined }}
-          >
-            {!isContentBee && <span className="text-mist">{brandLabel} · </span>}
-            {isContentBee ? `${brandLabel} · ` : ""}
-            <span className={isContentBee ? "" : "text-mist"}>
-              {project.client_name || "Client"}
-              {project.project_date ? ` · ${project.project_date}` : ""}
-            </span>
-          </motion.p>
-
-          <motion.h1
-            initial={{ opacity: 0, y: 22 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.08, ease: [0.16, 1, 0.3, 1] }}
-            className="mt-4 max-w-3xl font-display text-5xl leading-[1.04] text-bone sm:text-7xl"
-          >
-            {project.title}
-          </motion.h1>
-
-          {project.description && (
-            <motion.p
-              initial={{ opacity: 0, y: 18 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 0.16, ease: [0.16, 1, 0.3, 1] }}
-              className="mt-6 max-w-xl text-lg leading-relaxed text-mist"
-            >
-              {project.description}
-            </motion.p>
-          )}
-
-          {!isExpired && (
-            <motion.div
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 0.24, ease: [0.16, 1, 0.3, 1] }}
-              className="mt-9 flex flex-wrap items-center gap-3"
-            >
-              <DownloadAllButton videos={project.videos} images={allImages} />
-              {project.videos.length > 0 && (
-                <Button variant="ghost" size="lg" asChild>
-                  <a href="#films">
-                    {project.videos.length} {project.videos.length === 1 ? "film" : "films"}
-                    <ArrowDown className="h-4 w-4" />
-                  </a>
-                </Button>
-              )}
-              {allImages.length > 0 && (
-                <Button variant="ghost" size="lg" asChild>
-                  <a href="#images">
-                    {allImages.length} {allImages.length === 1 ? "photo" : "photos"}
-                    <ArrowDown className="h-4 w-4" />
-                  </a>
-                </Button>
-              )}
-            </motion.div>
-          )}
-        </div>
-      </section>
-
-      {/* ---------- Elérhetőség sáv ---------- */}
-      {!isExpired && remainingDays !== null && (
-        <div className="border-b border-ink-line bg-ink-card">
-          <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-6 py-3">
-            <span className="text-sm text-mist">
-              {remainingDays > 0
-                ? `Az anyagok még ${remainingDays} napig elérhetők`
-                : "Az anyagok ma járnak le"}
-            </span>
-            
-              <a href="#legal"
-              className="flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-eyebrow text-mist transition hover:text-bone"
-            >
-              <Info className="h-3.5 w-3.5" />
-              Részletek
-            </a>
-          </div>
-        </div>
-      )}
-
-      {/* ---------- Expired ---------- */}
-      {isExpired && (
-        <section className="mx-auto max-w-3xl px-6 py-20 sm:py-28">
-          <div className="rounded-2xl border border-ink-line bg-ink-card p-8 sm:p-10 text-center">
-            <h2
-              className="font-display text-2xl text-bone sm:text-3xl"
-              style={accent ? { color: accent } : undefined}
-            >
-              Ez a projekt már nem elérhető
-            </h2>
-
-            {expiredPaymentMode === "paid" ? (
-              <>
-                <p className="mt-4 text-base leading-relaxed text-mist">
-                  Az anyagok újbóli eléréséhez válassz az alábbi csomagok közül.
-                </p>
-                <PaymentPackages
-                  slug={project.slug}
-                  accent={accent}
-                  onOpenAszf={() => setAszfOpen(true)}
-                />
-                <p className="mt-6 text-sm text-mist">
-                  Kérdésed van? Írj nekünk:{" "}
-                  
-                    <a href={`mailto:${expiredContactEmail}`}
-                    className="text-bone underline underline-offset-4 transition hover:text-ember"
+            <div>
+              <div className="flex items-center justify-between">
+                <label className="font-mono text-[11px] uppercase tracking-eyebrow text-mist">
+                  Cover image
+                </label>
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => coverRef.current?.click()}
+                    className="text-xs text-ember hover:underline"
                   >
-                    {expiredContactEmail}
-                  </a>
-                </p>
-              </>
-            ) : (
-              <p className="mt-4 text-base leading-relaxed text-mist">
-                Ha újra szükséged van az anyagokra, vedd fel velünk a kapcsolatot:{" "}
-                
-                  <a href={`mailto:${expiredContactEmail}`}
-                  className="text-bone underline underline-offset-4 transition hover:text-ember"
-                >
-                  {expiredContactEmail}
-                </a>
-              </p>
-            )}
-          </div>
-        </section>
-      )}
-
-      {/* ---------- Films ---------- */}
-      {!isExpired && project.videos.length > 0 && (
-        <section id="films" className="mx-auto max-w-6xl px-6 py-20 sm:py-28">
-          <div className="mb-10 flex items-end justify-between border-b border-ink-line pb-6">
-            <h2 className="font-display text-2xl text-bone sm:text-3xl">The films</h2>
-            <span className="font-mono text-xs uppercase tracking-eyebrow text-mist">
-              Stream · Download
-            </span>
-          </div>
-
-          <div className="space-y-12">
-            {looseVideos.length > 0 && (
-              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                {looseVideos.map((v, i) => (
-                  <VideoCard key={v.id} video={v} index={i} onPlay={setActive} />
-                ))}
+                    Upload
+                  </button>
+                  {form.cover_image_url && (
+                    <button
+                      type="button"
+                      onClick={onDeleteCover}
+                      className="text-xs text-mist hover:text-ember hover:underline"
+                    >
+                      Remove
+                    </button>
+                  )}
+                </div>
               </div>
-            )}
-
-            {foldersWithVideos.map(({ folder, videos }) => (
-              <FolderSection
-                key={folder.id}
-                name={folder.name}
-                videos={videos}
-                onPlay={setActive}
-                accent={accent}
+              {form.cover_image_url && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={form.cover_image_url}
+                  alt="Cover"
+                  className="mt-2 h-32 w-full rounded-2xl border border-ink-line object-cover"
+                />
+              )}
+              <input
+                ref={coverRef}
+                type="file"
+                accept="image/*"
+                hidden
+                onChange={onCoverUpload}
               />
-            ))}
-          </div>
-        </section>
-      )}
+            </div>
 
-      {/* ---------- Images ---------- */}
-      {!isExpired && allImages.length > 0 && (
-        <section id="images" className="mx-auto max-w-6xl px-6 pb-20 sm:pb-28">
-          <div className="mb-10 flex items-end justify-between border-b border-ink-line pb-6">
-            <h2 className="font-display text-2xl text-bone sm:text-3xl">Photos</h2>
-            <ImagesDownloadButton
-              images={allImages}
-              label={`Download all (${allImages.length})`}
-            />
-          </div>
-
-          <div className="space-y-12">
-            {looseImages.length > 0 && (
-              <ImageGrid
-                images={looseImages}
-                onOpen={(imgs, idx) => setLightbox({ images: imgs, index: idx })}
+            <div>
+              <label className="font-mono text-[11px] uppercase tracking-eyebrow text-mist">
+                Description
+              </label>
+              <textarea
+                value={form.description}
+                onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+                rows={3}
+                className="mt-1.5 w-full rounded-2xl border border-ink-line bg-ink px-4 py-3 text-bone outline-none focus:border-ember/60"
               />
-            )}
+            </div>
 
-            {foldersWithImages.map(({ folder, images }) => (
-              <ImageFolderSection
-                key={folder.id}
-                name={folder.name}
-                images={images}
-                onOpen={(imgs, idx) => setLightbox({ images: imgs, index: idx })}
-                accent={accent}
+            <div>
+              <label className="font-mono text-[11px] uppercase tracking-eyebrow text-mist">
+                Brand
+              </label>
+              <div className="mt-1.5 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setForm((f) => ({ ...f, brand: "hype" }))}
+                  className={`flex-1 rounded-full border px-4 py-2 text-sm transition ${
+                    form.brand === "hype"
+                      ? "border-ember bg-ember/10 text-bone"
+                      : "border-ink-line text-mist hover:text-bone"
+                  }`}
+                >
+                  HYPE
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setForm((f) => ({ ...f, brand: "contentbee" }))}
+                  className={`flex-1 rounded-full border px-4 py-2 text-sm transition ${
+                    form.brand === "contentbee"
+                      ? "border-ember bg-ember/10 text-bone"
+                      : "border-ink-line text-mist hover:text-bone"
+                  }`}
+                >
+                  ContentBee
+                </button>
+              </div>
+            </div>
+            <div>
+              <label className="font-mono text-[11px] uppercase tracking-eyebrow text-mist">
+                Available until
+              </label>
+              <input
+                type="date"
+                value={form.expires_at}
+                onChange={(e) => onChangeExpiry(e.target.value)}
+                className="mt-1.5 w-full rounded-full border border-ink-line bg-ink px-4 py-2.5 text-bone outline-none focus:border-ember/60"
               />
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* ---------- Jogi szöveg (fizetős) ---------- */}
-      {!isExpired && isPaid && (
-        <section id="legal" className="mx-auto max-w-3xl px-6 py-16">
-          <div className="border-t border-ink-line pt-10">
-            <h2 className="font-display text-xl text-bone sm:text-2xl">
-              Elérhetőség és felhasználási feltételek
-            </h2>
-            <div className="mt-4 space-y-3 text-sm leading-relaxed text-mist">
-              <p>
-                Az elkészült fájlokat a HypeClient rendszerében 30 napig díjmentesen
-                elérheted és letöltheted. A 30 nap lejárta után az online hozzáférés
-                megszűnik, kivéve, ha tárhelycsomagot rendelsz. Fizetős előfizetés nem
-                indul automatikusan. A fájlokat ezt követően további 3 hónapig
-                archiváljuk, majd véglegesen töröljük, ezért kérjük, időben gondoskodj a
-                letöltésükről vagy hosszabb távú tárolásukról.
+              {form.expires_at && (
+                <p className="mt-1.5 text-xs text-mist">
+                  {(() => {
+                    const d = daysLeft();
+                    if (d === null) return null;
+                    if (d < 0) return "Expired — portal is hidden from clients.";
+                    if (d === 0) return "Expires today.";
+                    return `${d} ${d === 1 ? "day" : "days"} left until the portal hides its content.`;
+                  })()}
+                </p>
+              )}
+            </div>
+            <div>
+              <label className="font-mono text-[11px] uppercase tracking-eyebrow text-mist">
+                On expiry
+              </label>
+              <div className="mt-1.5 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setForm((f) => ({ ...f, payment_mode: "contact" }))}
+                  className={`flex-1 rounded-full border px-4 py-2 text-sm transition ${
+                    form.payment_mode === "contact"
+                      ? "border-ember bg-ember/10 text-bone"
+                      : "border-ink-line text-mist hover:text-bone"
+                  }`}
+                >
+                  Contact us
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setForm((f) => ({ ...f, payment_mode: "paid" }))}
+                  className={`flex-1 rounded-full border px-4 py-2 text-sm transition ${
+                    form.payment_mode === "paid"
+                      ? "border-ember bg-ember/10 text-bone"
+                      : "border-ink-line text-mist hover:text-bone"
+                  }`}
+                >
+                  Paid extension
+                </button>
+              </div>
+              <p className="mt-1.5 text-xs text-mist">
+                {form.payment_mode === "paid"
+                  ? "Clients can pay to extend access after expiry."
+                  : "Clients see a contact message after expiry."}
               </p>
             </div>
-            <div className="mt-5 flex flex-wrap gap-3">
-              <button
-                onClick={() => setTermsOpen(true)}
-                className="rounded-full border border-ink-line px-5 py-2.5 text-sm text-bone transition hover:border-ember/60"
-              >
-                Teljes felhasználási feltételek
-              </button>
-              <button
-                onClick={() => setAszfOpen(true)}
-                className="rounded-full border border-ink-line px-5 py-2.5 text-sm text-bone transition hover:border-ember/60"
-              >
-                ÁSZF
-              </button>
+            <div>
+              <div className="flex items-center justify-between">
+                <label className="font-mono text-[11px] uppercase tracking-eyebrow text-mist">
+                  Password {data.has_password ? "(set)" : "(none)"}
+                </label>
+                {data.has_password && (
+                  <button
+                    type="button"
+                    onClick={clearPassword}
+                    className="text-xs text-ember hover:underline"
+                  >
+                    Reset password
+                  </button>
+                )}
+              </div>
+              <input
+                type="password"
+                value={form.password}
+                placeholder={data.has_password ? "New password (leave empty to keep)" : "Set password"}
+                onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
+                className="mt-1.5 w-full rounded-full border border-ink-line bg-ink px-4 py-2.5 text-bone outline-none focus:border-ember/60"
+              />
             </div>
           </div>
-        </section>
-      )}
 
-      {/* ---------- Csak ÁSZF (nem fizetős) ---------- */}
-      {!isExpired && !isPaid && (
-        <section id="legal" className="mx-auto max-w-3xl px-6 py-16">
-          <div className="border-t border-ink-line pt-10">
+          <div className="mt-5 flex flex-wrap items-center gap-3">
+            <Button variant="primary" onClick={save}>
+              <Save className="h-4 w-4" />
+              {saved ? "Saved" : "Save changes"}
+            </Button>
+            <Button variant="ghost" asChild>
+              <a href={portalUrl} target="_blank">
+                View portal
+              </a>
+            </Button>
+            <Button variant="ghost" onClick={makeShare}>
+              <Link2 className="h-4 w-4" />
+              Share link
+            </Button>
             <button
-              onClick={() => setAszfOpen(true)}
-              className="rounded-full border border-ink-line px-5 py-2.5 text-sm text-bone transition hover:border-ember/60"
+              onClick={onDeleteProject}
+              className="ml-auto flex items-center gap-2 rounded-full border border-ember/40 px-4 py-2 text-sm text-ember transition hover:bg-ember/10"
             >
-              ÁSZF
+              <Trash2 className="h-4 w-4" />
+              Delete project
             </button>
           </div>
+          {shareUrl && (
+            <p className="mt-3 break-all rounded-xl border border-ink-line bg-ink px-3 py-2 font-mono text-xs text-mist">
+              Copied: {shareUrl}
+            </p>
+          )}
         </section>
-      )}
 
-      <footer className="mx-auto max-w-6xl px-6 pb-16 pt-4">
-        <p className="font-mono text-xs uppercase tracking-eyebrow text-mist">
-          © {new Date().getFullYear()} {brandLabel} — Private delivery
-        </p>
-      </footer>
+        {/* Files / Folders (Drive-like) */}
+        <section className="rounded-2xl border border-ink-line bg-ink-card p-6">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex min-w-0 items-center gap-2">
+              {currentFolder && (
+                <button
+                  onClick={() => setCurrentFolder(null)}
+                  title="Back"
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-mist transition hover:bg-white/[0.05] hover:text-bone"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                </button>
+              )}
+              <h2 className="truncate font-display text-xl text-bone">
+                {openFolder ? openFolder.name : "Content"}
+              </h2>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button variant="ghost" size="sm" onClick={onCreateFolder}>
+                <FolderPlus className="h-4 w-4" />
+                New folder
+              </Button>
+              <Button variant="ember" size="sm" onClick={() => fileRef.current?.click()}>
+                <Upload className="h-4 w-4" />
+                Upload
+              </Button>
+            </div>
+            <input
+              ref={fileRef}
+              type="file"
+              accept="video/*,image/*"
+              multiple
+              hidden
+              onChange={onUpload}
+            />
+            <input ref={replaceRef} type="file" accept="video/*" hidden onChange={onReplace} />
+          </div>
 
-      {active && <VideoPlayer video={active} onClose={() => setActive(null)} />}
-      {lightbox && (
-        <ImageLightbox
-          images={lightbox.images}
-          index={lightbox.index}
-          onClose={() => setLightbox(null)}
-          onNavigate={(idx) => setLightbox({ images: lightbox.images, index: idx })}
+          <p className="mt-2 text-xs text-mist">
+            {currentFolder
+              ? "Uploaded videos and images will go into this folder."
+              : "Open a folder, or upload videos and images here without a folder."}
+          </p>
+
+          {/* Selection bar */}
+          {selectedCount > 0 && (
+            <div className="mt-4 flex items-center justify-between rounded-xl border border-ember/40 bg-ember/10 px-3 py-2.5">
+              <span className="text-sm text-bone">{selectedCount} selected</span>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={clearSelection}
+                  className="text-xs text-mist transition hover:text-bone"
+                >
+                  Clear
+                </button>
+                <button
+                  onClick={onDeleteSelected}
+                  className="flex items-center gap-2 rounded-full border border-ember/50 px-3 py-1.5 text-xs text-ember transition hover:bg-ember/20"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  Delete selected
+                </button>
+              </div>
+            </div>
+          )}
+
+          {batch && (
+            <div className="mt-4 rounded-xl border border-ember/40 bg-ember/10 px-3 py-3">
+              <div className="mb-1.5 flex items-center justify-between">
+                <span className="text-sm text-bone">
+                  Feltöltés: {batch.done} / {batch.total} kép
+                </span>
+                <span className="font-mono text-[11px] text-mist">
+                  {(() => {
+                    if (batch.done === 0) return "Becslés…";
+                    const elapsed = (Date.now() - batch.startedAt) / 1000;
+                    const perItem = elapsed / batch.done;
+                    const remaining = Math.round(perItem * (batch.total - batch.done));
+                    if (remaining < 60) return `~${remaining} mp van hátra`;
+                    return `~${Math.ceil(remaining / 60)} perc van hátra`;
+                  })()}
+                </span>
+              </div>
+              <div className="h-1.5 w-full overflow-hidden rounded-full bg-ink-line">
+                <div
+                  className="h-full rounded-full bg-ember transition-all duration-300"
+                  style={{ width: `${Math.round((batch.done / batch.total) * 100)}%` }}
+                />
+              </div>
+              <button
+                onClick={cancelUploadNow}
+                className="mt-2.5 w-full rounded-full border border-ember/50 py-1.5 text-xs text-ember transition hover:bg-ember/20"
+              >
+                Feltöltés leállítása
+              </button>
+            </div>
+          )}
+
+          {uploads.length > 0 && (
+            <div className="mt-4 space-y-2">
+              {uploads.map((u) => (
+                <div
+                  key={u.name}
+                  className="rounded-xl border border-ink-line bg-ink px-3 py-2.5"
+                >
+                  <div className="mb-1.5 flex items-center justify-between">
+                    <span className="truncate text-sm text-bone">{u.name}</span>
+                    <span className="font-mono text-[11px] text-mist">
+                      {u.percent < 100 ? `${u.percent}%` : "Processing…"}
+                    </span>
+                  </div>
+                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-ink-line">
+                    <div
+                      className="h-full rounded-full bg-ember transition-all duration-200"
+                      style={{ width: `${u.percent}%` }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Folders (root only) */}
+          {!currentFolder && folders.length > 0 && (
+            <ul className="mt-4 space-y-2">
+              {folders.map((f) => {
+                const vCount = videos.filter((v) => v.folder_id === f.id).length;
+                const iCount = images.filter((i) => i.folder_id === f.id).length;
+                return (
+                  <li
+                    key={f.id}
+                    className="flex items-center gap-3 rounded-xl border border-ink-line bg-ink px-3 py-2.5"
+                  >
+                    <button
+                      onClick={() => setCurrentFolder(f.id)}
+                      className="flex min-w-0 flex-1 items-center gap-3 text-left"
+                    >
+                      <FolderIcon className="h-5 w-5 shrink-0 text-ember" />
+                      <span className="truncate text-sm text-bone">{f.name}</span>
+                      <span className="ml-auto shrink-0 font-mono text-[11px] text-mist">
+                        {vCount + iCount} {vCount + iCount === 1 ? "item" : "items"}
+                      </span>
+                    </button>
+                    <button
+                      title="Rename"
+                      onClick={() => onRenameFolder(f.id)}
+                      className="text-mist transition hover:text-bone"
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </button>
+                    <button
+                      title="Delete folder"
+                      onClick={() => onDeleteFolder(f.id)}
+                      className="text-mist transition hover:text-ember"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+
+          {/* Videos in current view */}
+          <ul className="mt-2 space-y-2">
+            {visibleVideos.map((v) => {
+              const isSelected = selectedVideos.has(v.id);
+              return (
+                <li
+                  key={v.id}
+                  draggable={!isSelected}
+                  onDragStart={() => (dragId.current = v.id)}
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={() => onDrop(v.id)}
+                  className={`flex items-center gap-3 rounded-xl border bg-ink px-3 py-2.5 ${
+                    isSelected ? "border-ember/60" : "border-ink-line"
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={isSelected}
+                    onChange={() => toggleVideo(v.id)}
+                    onClick={(e) => e.stopPropagation()}
+                    className="h-4 w-4 shrink-0 cursor-pointer accent-ember"
+                  />
+                  <GripVertical className="h-4 w-4 shrink-0 cursor-grab text-mist" />
+                  <div className="h-9 w-16 shrink-0 overflow-hidden rounded bg-ink-soft">
+                    {v.thumbnail_url && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={v.thumbnail_url} alt="" className="h-full w-full object-cover" />
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm text-bone">{v.title}</p>
+                    <p className="font-mono text-[11px] text-mist">
+                      {v.status === "ready"
+                        ? `${v.resolution_label} · ${formatDuration(v.duration_seconds)} · ${formatBytes(v.size_bytes)}`
+                        : v.status === "processing"
+                        ? "Processing…"
+                        : "Failed"}
+                    </p>
+                  </div>
+                  {currentFolder && (
+                    <button
+                      title="Remove from folder"
+                      onClick={() => onRemoveFromFolder(v.id)}
+                      className="text-mist transition hover:text-bone"
+                    >
+                      <ArrowLeft className="h-4 w-4" />
+                    </button>
+                  )}
+                  <button
+                    title="Replace"
+                    onClick={() => {
+                      replaceId.current = v.id;
+                      replaceRef.current?.click();
+                    }}
+                    className="text-mist transition hover:text-bone"
+                  >
+                    <Replace className="h-4 w-4" />
+                  </button>
+                  <button
+                    title="Delete"
+                    onClick={() => onDeleteVideo(v.id)}
+                    className="text-mist transition hover:text-ember"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </li>
+              );
+            })}
+            {visibleVideos.length === 0 && (
+              <li className="py-8 text-center text-sm text-mist">
+                {currentFolder
+                  ? "No videos in this folder."
+                  : "No videos without a folder."}
+              </li>
+            )}
+          </ul>
+
+          {/* Images in current view */}
+          {visibleImages.length > 0 && (
+            <div className="mt-6">
+              <h3 className="mb-3 font-mono text-[11px] uppercase tracking-eyebrow text-mist">
+                Images ({visibleImages.length})
+              </h3>
+              <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+                {visibleImages.map((img) => (
+                  <LazyImageCell
+                    key={img.id}
+                    img={img}
+                    selected={selectedImages.has(img.id)}
+                    inFolder={!!currentFolder}
+                    onToggle={() => toggleImage(img.id)}
+                    onRemoveFromFolder={() => onRemoveImageFromFolder(img.id)}
+                    onDelete={() => onDeleteImage(img.id)}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+        </section>
+      </div>
+
+      {prompt && (
+        <PromptDialog
+          title={prompt.title}
+          initialValue={prompt.value}
+          onCancel={() => setPrompt(null)}
+          onConfirm={(value) => {
+            const cb = prompt.onConfirm;
+            setPrompt(null);
+            cb(value);
+          }}
         />
       )}
-      {termsOpen && <TermsModal onClose={() => setTermsOpen(false)} />}
-      {aszfOpen && <AszfModal onClose={() => setAszfOpen(false)} />}
+
+      {confirmDialog && (
+        <ConfirmDialog
+          message={confirmDialog.message}
+          onCancel={() => setConfirmDialog(null)}
+          onConfirm={() => {
+            const cb = confirmDialog.onConfirm;
+            setConfirmDialog(null);
+            cb();
+          }}
+        />
+      )}
     </main>
   );
 }
 
-function FolderSection({
-  name,
-  videos,
-  onPlay,
-  accent,
+function LazyImageCell({
+  img,
+  selected,
+  inFolder,
+  onToggle,
+  onRemoveFromFolder,
+  onDelete,
 }: {
-  name: string;
-  videos: Video[];
-  onPlay: (v: Video) => void;
-  accent?: string;
+  img: ImageType;
+  selected: boolean;
+  inFolder: boolean;
+  onToggle: () => void;
+  onRemoveFromFolder: () => void;
+  onDelete: () => void;
 }) {
-  const [open, setOpen] = useState(true);
+  const ref = useRef<HTMLDivElement>(null);
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => setVisible(entry.isIntersecting),
+      { rootMargin: "600px 0px" } // a látható terület felett/alatt 600px-rel előtölt
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   return (
-    <div>
-      <button
-        onClick={() => setOpen((o) => !o)}
-        className="mb-6 flex w-full items-center justify-between border-b border-ink-line pb-3 text-left transition hover:border-ember/40"
-      >
-        <h3
-          className="font-display text-xl text-bone sm:text-2xl"
-          style={accent ? { color: accent } : undefined}
-        >
-          {name}
-        </h3>
-        <span className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-eyebrow text-mist">
-          {videos.length} {videos.length === 1 ? "film" : "films"}
-          <ChevronDown
-            className={`h-4 w-4 transition-transform duration-300 ${
-              open ? "rotate-180" : ""
-            }`}
-          />
-        </span>
-      </button>
-
-      <AnimatePresence initial={false}>
-        {open && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-            className="overflow-hidden"
-          >
-            <div className="grid grid-cols-1 gap-6 pb-2 sm:grid-cols-2 lg:grid-cols-3">
-              {videos.map((v, i) => (
-                <VideoCard key={v.id} video={v} index={i} onPlay={onPlay} />
-              ))}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-}
-
-function ImageFolderSection({
-  name,
-  images,
-  onOpen,
-  accent,
-}: {
-  name: string;
-  images: ImageType[];
-  onOpen: (images: ImageType[], index: number) => void;
-  accent?: string;
-}) {
-  const [open, setOpen] = useState(true);
-
-  return (
-    <div>
-      <button
-        onClick={() => setOpen((o) => !o)}
-        className="mb-6 flex w-full items-center justify-between border-b border-ink-line pb-3 text-left transition hover:border-ember/40"
-      >
-        <h3
-          className="font-display text-xl text-bone sm:text-2xl"
-          style={accent ? { color: accent } : undefined}
-        >
-          {name}
-        </h3>
-        <span className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-eyebrow text-mist">
-          {images.length} {images.length === 1 ? "photo" : "photos"}
-          <ChevronDown
-            className={`h-4 w-4 transition-transform duration-300 ${
-              open ? "rotate-180" : ""
-            }`}
-          />
-        </span>
-      </button>
-
-      <AnimatePresence initial={false}>
-        {open && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-            className="overflow-hidden"
-          >
-            <div className="pb-2">
-              <ImageGrid images={images} onOpen={onOpen} />
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-}
-
-function ImageGrid({
-  images,
-  onOpen,
-}: {
-  images: ImageType[];
-  onOpen: (images: ImageType[], index: number) => void;
-}) {
-  return (
-    <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-      {images.map((img, i) => (
-        <button
-          key={img.id}
-          onClick={() => onOpen(images, i)}
-          className="group relative aspect-square overflow-hidden rounded-2xl border border-ink-line bg-ink-card"
-        >
+    <div
+      ref={ref}
+      className={`group relative aspect-square overflow-hidden rounded-lg border bg-ink-soft ${
+        selected ? "border-ember/60 ring-2 ring-ember/40" : "border-ink-line"
+      }`}
+    >
+      {/* A kép és a vezérlők CSAK akkor renderelődnek, ha a cella látható közelben.
+          Így 800+ képnél is könnyű marad a DOM. */}
+      {visible && (
+        <>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={img.thumbnail_url || img.url}
             alt={img.title}
             loading="lazy"
             decoding="async"
-            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+            className="h-full w-full object-cover"
           />
-          <div className="absolute inset-0 bg-black/0 transition group-hover:bg-black/20" />
-        </button>
-      ))}
+          <label
+            className="absolute left-2 top-2 z-20 flex h-6 w-6 cursor-pointer items-center justify-center rounded bg-black/60"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <input
+              type="checkbox"
+              checked={selected}
+              onChange={onToggle}
+              className="h-4 w-4 cursor-pointer accent-ember"
+            />
+          </label>
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center gap-2 bg-black/50 opacity-0 transition group-hover:opacity-100">
+            {inFolder && (
+              <button
+                title="Remove from folder"
+                onClick={onRemoveFromFolder}
+                className="pointer-events-auto flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-bone transition hover:text-white"
+              >
+                <ArrowLeft className="h-4 w-4" />
+              </button>
+            )}
+            <button
+              title="Delete"
+              onClick={onDelete}
+              className="pointer-events-auto flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-bone transition hover:text-ember"
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
+          </div>
+        </>
+      )}
     </div>
   );
 }
 
-function ImageLightbox({
-  images,
-  index,
-  onClose,
-  onNavigate,
-}: {
-  images: ImageType[];
-  index: number;
-  onClose: () => void;
-  onNavigate: (index: number) => void;
-}) {
-  const [preparing, setPreparing] = useState(false);
-  const [loaded, setLoaded] = useState(false);
-  const touchStartX = useRef<number | null>(null);
-  const image = images[index];
-  const hasPrev = index > 0;
-  const hasNext = index < images.length - 1;
-
-  function goPrev() {
-    if (hasPrev) onNavigate(index - 1);
-  }
-  function goNext() {
-    if (hasNext) onNavigate(index + 1);
-  }
-
-  function onTouchStart(e: React.TouchEvent) {
-    touchStartX.current = e.touches[0].clientX;
-  }
-  function onTouchEnd(e: React.TouchEvent) {
-    if (touchStartX.current === null) return;
-    const dx = e.changedTouches[0].clientX - touchStartX.current;
-    const THRESHOLD = 50; // px, ennél nagyobb húzás számít lapozásnak
-    if (dx > THRESHOLD) goPrev();
-    else if (dx < -THRESHOLD) goNext();
-    touchStartX.current = null;
-  }
-
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "ArrowLeft") goPrev();
-      else if (e.key === "ArrowRight") goNext();
-      else if (e.key === "Escape") onClose();
-    }
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [index, images.length]);
-
-  useEffect(() => {
-    setLoaded(false);
-  }, [index]);
-
-  async function handleDownload() {
-    if (preparing) return;
-    setPreparing(true);
-    try {
-      await downloadImage(image.id, image.title);
-    } finally {
-      setTimeout(() => setPreparing(false), 1000);
-    }
-  }
-
-  return (
-    <AnimatePresence>
-      <motion.div
-        className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-md p-4 sm:p-8"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        onClick={onClose}
-        onTouchStart={onTouchStart}
-        onTouchEnd={onTouchEnd}
-      >
-        <button
-          aria-label="Close"
-          onClick={onClose}
-          className="absolute right-5 top-5 z-20 flex h-11 w-11 items-center justify-center rounded-full border border-white/15 text-bone transition hover:bg-white/10"
-        >
-          <X className="h-5 w-5" />
-        </button>
-
-        {hasPrev && (
-          <button
-            aria-label="Previous"
-            onClick={(e) => {
-              e.stopPropagation();
-              goPrev();
-            }}
-            className="absolute left-3 top-1/2 z-20 flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full border border-white/15 text-bone transition hover:bg-white/10 sm:left-6"
-          >
-            <ChevronLeft className="h-6 w-6" />
-          </button>
-        )}
-
-        {hasNext && (
-          <button
-            aria-label="Next"
-            onClick={(e) => {
-              e.stopPropagation();
-              goNext();
-            }}
-            className="absolute right-3 top-1/2 z-20 flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full border border-white/15 text-bone transition hover:bg-white/10 sm:right-6"
-          >
-            <ChevronRight className="h-6 w-6" />
-          </button>
-        )}
-
-        <motion.div
-          key={image.id}
-          className="flex max-h-full max-w-5xl flex-col items-center gap-4"
-          initial={{ scale: 0.96, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          exit={{ scale: 0.96, opacity: 0 }}
-          transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div className="relative flex items-center justify-center">
-            {image.thumbnail_url && !loaded && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={image.thumbnail_url}
-                alt=""
-                aria-hidden="true"
-                className="absolute left-1/2 top-1/2 max-h-[78vh] w-auto max-w-full -translate-x-1/2 -translate-y-1/2 rounded-2xl object-contain blur-sm"
-              />
-            )}
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={image.url}
-              alt={image.title}
-              onLoad={() => setLoaded(true)}
-              className={`max-h-[78vh] w-auto rounded-2xl object-contain transition-opacity duration-300 ${
-                loaded ? "opacity-100" : "opacity-0"
-              }`}
-            />
-          </div>
-          <div className="flex items-center gap-4">
-            <span className="font-mono text-xs text-mist">
-              {index + 1} / {images.length}
-            </span>
-            <button
-              onClick={handleDownload}
-              disabled={preparing}
-              className="flex min-w-[160px] shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-full bg-bone px-6 py-3 text-sm font-medium text-ink transition hover:bg-white disabled:opacity-60"
-            >
-              {preparing ? (
-                <Loader2 className="h-5 w-5 animate-spin" />
-              ) : (
-                <Download className="h-5 w-5" />
-              )}
-              {preparing ? "Preparing…" : "Download"}
-            </button>
-          </div>
-        </motion.div>
-      </motion.div>
-    </AnimatePresence>
-  );
-}
-
-function DownloadAllButton({
-  videos,
-  images,
-}: {
-  videos: Video[];
-  images: ImageType[];
-}) {
-  const [busy, setBusy] = useState(false);
-  const [status, setStatus] = useState<string>("");
-  const startedAt = useRef<number>(0);
-
-  async function downloadAll() {
-    if (busy) return;
-    setBusy(true);
-    try {
-      // 1) Videók egyenként
-      const playable = videos.filter((v) => v.mp4_url);
-      for (let i = 0; i < playable.length; i++) {
-        const v = playable[i];
-        setStatus(`Videó ${i + 1} / ${playable.length}`);
-        await downloadVideo(v.id, v.mp4_url, `${v.title}.mp4`, v.size_bytes);
-        await new Promise((r) => setTimeout(r, 800));
-      }
-
-      // 2) Képek ZIP-be, haladásjelzéssel
-      if (images.length > 0) {
-        startedAt.current = Date.now();
-        setStatus(`Képek 0 / ${images.length}`);
-        await downloadImagesAll(
-          images.map((i) => ({ id: i.id, title: i.title })),
-          (done, total) => {
-            if (done === 0) {
-              setStatus(`Képek 0 / ${total}`);
-              return;
-            }
-            const elapsed = (Date.now() - startedAt.current) / 1000;
-            const remaining = Math.round((elapsed / done) * (total - done));
-            const timeStr =
-              remaining < 60 ? `~${remaining} mp` : `~${Math.ceil(remaining / 60)} perc`;
-            setStatus(`Képek ${done} / ${total} · ${timeStr}`);
-          }
-        );
-      }
-    } finally {
-      setBusy(false);
-      setStatus("");
-    }
-  }
-
-  const total = videos.length + images.length;
-  return (
-    <Button variant="primary" size="lg" onClick={downloadAll} disabled={!total || busy}>
-      {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-      {busy ? status || "Preparing…" : "Download all"}
-    </Button>
-  );
-}
-
-function ImagesDownloadButton({
-  images,
+function Field({
   label,
+  value,
+  onChange,
+  type = "text",
+  placeholder,
 }: {
-  images: ImageType[];
   label: string;
+  value: string;
+  onChange: (v: string) => void;
+  type?: string;
+  placeholder?: string;
 }) {
-  const [busy, setBusy] = useState(false);
-  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
-  const startedAt = useRef<number>(0);
-
-  async function handleDownload() {
-    if (busy) return;
-    setBusy(true);
-    setProgress({ done: 0, total: images.length });
-    startedAt.current = Date.now();
-    try {
-      await downloadImagesAll(
-        images.map((i) => ({ id: i.id, title: i.title })),
-        (done, total) => setProgress({ done, total })
-      );
-    } finally {
-      setBusy(false);
-      setProgress(null);
-    }
-  }
-
-  function progressLabel() {
-    if (!progress) return "Preparing…";
-    const { done, total } = progress;
-    if (done === 0) return `0 / ${total}`;
-    const elapsed = (Date.now() - startedAt.current) / 1000;
-    const remaining = Math.round((elapsed / done) * (total - done));
-    const timeStr =
-      remaining < 60 ? `~${remaining} mp` : `~${Math.ceil(remaining / 60)} perc`;
-    return `${done} / ${total} · ${timeStr}`;
-  }
-
   return (
-    <button
-      onClick={handleDownload}
-      disabled={busy}
-      className="flex shrink-0 items-center gap-2 whitespace-nowrap rounded-full bg-bone px-5 py-2.5 text-sm font-medium text-ink transition hover:bg-white disabled:opacity-60"
-    >
-      {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-      {busy ? progressLabel() : label}
-    </button>
+    <div>
+      <label className="font-mono text-[11px] uppercase tracking-eyebrow text-mist">
+        {label}
+      </label>
+      <input
+        type={type}
+        value={value}
+        placeholder={placeholder}
+        onChange={(e) => onChange(e.target.value)}
+        className="mt-1.5 w-full rounded-full border border-ink-line bg-ink px-4 py-2.5 text-bone outline-none focus:border-ember/60"
+      />
+    </div>
   );
 }
-  
 
-function PaymentPackages({
-  slug,
-  accent,
-  onOpenAszf,
+function PromptDialog({
+  title,
+  initialValue,
+  onCancel,
+  onConfirm,
 }: {
-  slug: string;
-  accent?: string;
-  onOpenAszf: () => void;
+  title: string;
+  initialValue: string;
+  onCancel: () => void;
+  onConfirm: (value: string) => void;
 }) {
-  const [busy, setBusy] = useState<string | null>(null);
-  const [accepted, setAccepted] = useState(false);
-
-  const packages = [
-    { code: "1month", label: "1 hónap", price: "6 000 Ft" },
-    { code: "180days", label: "180 nap", price: "30 000 Ft" },
-    { code: "1year", label: "1 év", price: "50 000 Ft" },
-  ];
-
-  async function pay(code: string) {
-    if (busy || !accepted) return;
-    setBusy(code);
-    try {
-      const url = await startPayment(slug, code);
-      window.location.href = url;
-    } catch {
-      setBusy(null);
-    }
-  }
-
+  const [value, setValue] = useState(initialValue);
   return (
-    <div className="mt-6">
-      <label className="flex cursor-pointer items-start justify-center gap-2.5 text-left text-sm text-mist">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-6"
+      onClick={onCancel}
+    >
+      <div
+        className="w-full max-w-sm rounded-2xl border border-ink-line bg-ink-card p-6"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h3 className="font-display text-lg text-bone">{title}</h3>
         <input
-          type="checkbox"
-          checked={accepted}
-          onChange={(e) => setAccepted(e.target.checked)}
-          className="mt-0.5 h-4 w-4 shrink-0 accent-ember"
+          autoFocus
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") onConfirm(value);
+            if (e.key === "Escape") onCancel();
+          }}
+          className="mt-4 w-full rounded-full border border-ink-line bg-ink px-4 py-2.5 text-bone outline-none focus:border-ember/60"
         />
-        <span>
-          Elolvastam és elfogadom az{" "}
-          <button
-            type="button"
-            onClick={onOpenAszf}
-            className="text-bone underline underline-offset-4 transition hover:text-ember"
-          >
-            Általános Szerződési Feltételeket
-          </button>
-          .
-        </span>
-      </label>
-
-      <div className="mt-5 grid gap-3 sm:grid-cols-3">
-        {packages.map((p) => (
-          <button
-            key={p.code}
-            onClick={() => pay(p.code)}
-            disabled={!!busy || !accepted}
-            className="flex flex-col items-center gap-1 rounded-2xl border border-ink-line bg-ink px-4 py-5 transition hover:border-ember/60 disabled:cursor-not-allowed disabled:opacity-40"
-            style={busy === p.code && accent ? { borderColor: accent } : undefined}
-          >
-            <span className="font-display text-lg text-bone">{p.label}</span>
-            <span className="font-mono text-sm text-mist">
-              {busy === p.code ? "Átirányítás…" : p.price}
-            </span>
-          </button>
-        ))}
+        <div className="mt-5 flex justify-end gap-3">
+          <Button variant="ghost" size="sm" onClick={onCancel}>
+            Cancel
+          </Button>
+          <Button variant="primary" size="sm" onClick={() => onConfirm(value)}>
+            OK
+          </Button>
+        </div>
       </div>
     </div>
   );
 }
 
-function TermsModal({ onClose }: { onClose: () => void }) {
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
-    }
-    window.addEventListener("keydown", onKey);
-    document.body.style.overflow = "hidden";
-    return () => {
-      window.removeEventListener("keydown", onKey);
-      document.body.style.overflow = "";
-    };
-  }, [onClose]);
-
+function ConfirmDialog({
+  message,
+  onCancel,
+  onConfirm,
+}: {
+  message: string;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
   return (
-    <AnimatePresence>
-      <motion.div
-        className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto bg-black/80 backdrop-blur-sm p-4 sm:p-8"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        onClick={onClose}
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-6"
+      onClick={onCancel}
+    >
+      <div
+        className="w-full max-w-sm rounded-2xl border border-ink-line bg-ink-card p-6"
+        onClick={(e) => e.stopPropagation()}
       >
-        <motion.div
-          className="relative my-8 w-full max-w-2xl rounded-2xl border border-ink-line bg-ink-card p-6 sm:p-10"
-          initial={{ scale: 0.97, opacity: 0, y: 12 }}
-          animate={{ scale: 1, opacity: 1, y: 0 }}
-          exit={{ scale: 0.97, opacity: 0, y: 12 }}
-          transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-          onClick={(e) => e.stopPropagation()}
-        >
+        <p className="text-sm leading-relaxed text-bone">{message}</p>
+        <div className="mt-5 flex justify-end gap-3">
+          <Button variant="ghost" size="sm" onClick={onCancel}>
+            Cancel
+          </Button>
           <button
-            aria-label="Bezárás"
-            onClick={onClose}
-            className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full border border-ink-line text-mist transition hover:bg-white/5 hover:text-bone"
+            onClick={onConfirm}
+            className="flex items-center gap-2 rounded-full border border-ember/40 px-4 py-2 text-sm text-ember transition hover:bg-ember/10"
           >
-            <X className="h-5 w-5" />
+            Delete
           </button>
-
-          <h2 className="pr-12 font-display text-2xl text-bone">
-            Tájékoztató az elkészült anyagok online eléréséről és megőrzéséről
-          </h2>
-
-          <div className="mt-6 space-y-5 text-sm leading-relaxed text-mist">
-            <p>
-              Üdvözlünk a HypeClient online rendszerében! A HypeClient a Hype
-              Productions Kft. által üzemeltetett online ügyfél- és fájlkezelő
-              szolgáltatás.
-            </p>
-            <p>
-              A HypeClient rendszerébe feltöltött elkészült anyagok a feltöltésről
-              szóló értesítés megküldésétől számított 30 napon keresztül díjmentesen
-              elérhetők és letölthetők. A díjmentes hozzáférési időszak alatt az
-              anyagokat megtekintheted és letöltheted. Javasoljuk, hogy a megőrizni
-              kívánt fájlokat ezen időszakon belül töltsd le, és gondoskodj azok saját
-              eszközön vagy más, általad választott tárhelyen történő biztonságos
-              tárolásáról.
-            </p>
-
-            <div>
-              <h3 className="font-display text-base text-bone">
-                Az online hozzáférés meghosszabbítása
-              </h3>
-              <p className="mt-2">
-                A 30 napos díjmentes időszak lejártát követően az online hozzáférés
-                megszűnik, kivéve, ha az ügyfél külön tárhelycsomagot választ és annak
-                igénybevételét kifejezetten megrendeli. A díjmentes időszak lejárta nem
-                eredményez automatikusan fizetős előfizetést vagy más díjfizetési
-                kötelezettséget. Fizetési kötelezettség kizárólag az ügyfél kifejezett
-                megrendelése alapján keletkezik.
-              </p>
-              <p className="mt-2">
-                Az elérhető tárhelycsomagok, azok díjai és részletes feltételei a
-                HypeClient felületén tekinthetők meg. Az előfizetés vagy tárhelycsomag
-                megrendelése a HypeClient felületén keresztül történik, a kapcsolódó
-                bankkártyás fizetések lebonyolítását pedig a Barion rendszere végzi. A
-                bankkártyaadatok kezelése és a fizetési tranzakciók feldolgozása a Barion
-                biztonságos fizetési felületén történik, amelyért és annak működéséért a
-                Barion Payment Zrt. felelős. A Hype Productions Kft. a bankkártyaadatokat
-                nem tárolja és azokhoz nem fér hozzá.
-              </p>
-            </div>
-
-            <div>
-              <h3 className="font-display text-base text-bone">
-                Az anyagok archivált megőrzése
-              </h3>
-              <p className="mt-2">
-                Amennyiben az ügyfél nem rendeli meg az online hozzáférés
-                meghosszabbítását, a 30 napos díjmentes időszak lejártát követően az
-                anyagok online elérhetősége megszűnik. Ezt követően a Hype Productions
-                Kft. az anyagokat további 3 hónapig archivált, az ügyfél által közvetlenül
-                nem hozzáférhető tárhelyen őrzi meg.
-              </p>
-              <p className="mt-2">
-                Az archivált időszak alatt az anyagok ismételt hozzáférhetővé tétele vagy
-                visszaállítása külön ügyfélkérelemre, a Hype Productions Kft.
-                visszaigazolása alapján történhet. A visszaállításhoz kapcsolódó esetleges
-                díjakról, teljesítési határidőkről és egyéb feltételekről a Hype
-                Productions Kft. előzetesen tájékoztatást ad.
-              </p>
-            </div>
-
-            <div>
-              <h3 className="font-display text-base text-bone">Végleges törlés</h3>
-              <p className="mt-2">
-                A három hónapos archivált megőrzési időszak lejártát követően az anyagok
-                és azok rendelkezésre álló másolatai a HypeClient rendszeréből, valamint a
-                Hype Productions Kft. által használt aktív és archivált tárhelyekről
-                véglegesen törlésre kerülnek. A törlést követően az anyagok
-                visszaállítására, helyreállítására vagy ismételt rendelkezésre bocsátására
-                nincs lehetőség.
-              </p>
-              <p className="mt-2">
-                Kérjük, hogy amennyiben az anyagokat hosszabb távon is meg kívánod őrizni:
-                töltsd le azokat a 30 napos díjmentes hozzáférési időszakon belül;
-                gondoskodj saját biztonsági másolat készítéséről; vagy válassz a
-                HypeClient felületén elérhető online tárhelycsomagok közül.
-              </p>
-            </div>
-
-            <div>
-              <h3 className="font-display text-base text-bone">Adatkezelés</h3>
-              <p className="mt-2">
-                Amennyiben az elkészült anyagok személyes adatokat tartalmaznak, azok
-                kezelése és megőrzése a Hype Productions Kft. mindenkor hatályos
-                Adatkezelési Tájékoztatójában, valamint az alkalmazandó szerződéses
-                feltételekben foglaltak szerint történik.
-              </p>
-              <p className="mt-2">
-                A HypeClient online tárhelyszolgáltatás részletes feltételeit, díjait, a
-                szolgáltatás igénybevételének és megszüntetésének szabályait, valamint a
-                felek jogait és kötelezettségeit az Általános Szerződési Feltételek
-                tartalmazzák.
-              </p>
-              <p className="mt-2">
-                Felhívjuk a figyelmedet, hogy hosszú távú megőrzés esetén ne hagyatkozz
-                kizárólag a HypeClient online vagy archivált tárolási rendszerére. A
-                megőrizni kívánt anyagokról minden esetben készíts saját biztonsági
-                másolatot.
-              </p>
-            </div>
-
-            <p className="border-t border-ink-line pt-4 text-xs text-mist">
-              A HypeClient szolgáltatás üzemeltetője: Hype Productions Kft.
-            </p>
-          </div>
-        </motion.div>
-      </motion.div>
-    </AnimatePresence>
-  );
-}
-
-function AszfModal({ onClose }: { onClose: () => void }) {
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
-    }
-    window.addEventListener("keydown", onKey);
-    document.body.style.overflow = "hidden";
-    return () => {
-      window.removeEventListener("keydown", onKey);
-      document.body.style.overflow = "";
-    };
-  }, [onClose]);
-
-  const sections = [
-    {
-      h: "1. Szolgáltató adatai",
-      p: "Cégnév: Hype Productions Korlátolt Felelősségű Társaság · Rövidített cégnév: Hype Productions Kft. · Székhely: 1045 Budapest, Virág utca 24. I. emelet 2. · Cégjegyzékszám: 01-09-988327 · Adószám: 23995828-2-41 · Nyilvántartó bíróság: Fővárosi Törvényszék Cégbírósága · E-mail: info@hypestab.hu · Honlap: https://hypeclient.com",
-    },
-    {
-      h: "2. A szolgáltatás leírása",
-      p: "A HypeClient a Hype Productions Kft. online ügyfél- és tárhelyszolgáltatása, amely lehetővé teszi az elkészült digitális fájlok online megtekintését, letöltését és meghatározott időtartamú tárolását.",
-    },
-    {
-      h: "3. Díjmentes hozzáférés",
-      p: "A HypeClient rendszerébe feltöltött elkészült anyagok a feltöltésről szóló értesítés megküldésétől számított 30 napon keresztül díjmentesen elérhetők és letölthetők. A 30 napos időszak lejártát követően az online hozzáférés megszűnik, kivéve, ha az ügyfél tárhelycsomagot rendel.",
-    },
-    {
-      h: "4. Tárhelycsomagok",
-      p: "A HypeClient tárhelycsomagjai egyszeri díjas szolgáltatások. A megvásárolt tárhelycsomag a választott időtartam lejártával automatikusan megszűnik. Ismétlődő díjfizetés, automatikus megújítás vagy automatikus bankkártyaterhelés nem történik.",
-    },
-    {
-      h: "5. Fizetés",
-      p: "A tárhelycsomagok díjának kiegyenlítése a Barion rendszerén keresztül történik. A bankkártyaadatok kezelése a Barion biztonságos felületén zajlik. A Hype Productions Kft. a bankkártyaadatokhoz nem fér hozzá és azokat nem tárolja. A szolgáltatásról elektronikus számla kerül kiállításra a Számlázz.hu rendszerén keresztül.",
-    },
-    {
-      h: "6. Archiválás",
-      p: "Amennyiben az ügyfél nem rendel tárhelycsomagot vagy a tárhelycsomag lejár, az anyagok online elérhetősége megszűnik. A Hype Productions Kft. ezt követően az anyagokat további 3 hónapig offline archivált, az ügyfél által közvetlenül nem hozzáférhető tárhelyen őrzi meg.",
-    },
-    {
-      h: "7. Végleges törlés",
-      p: "A 3 hónapos archiválási időszak lejártát követően az anyagok véglegesen törlésre kerülnek. A törlést követően az anyagok visszaállítására nincs lehetőség. Az ügyfél köteles gondoskodni a számára fontos fájlok saját biztonsági mentéséről.",
-    },
-    {
-      h: "8. Felelősség",
-      p: "A HypeClient nem minősül korlátlan archiválási vagy biztonsági mentési szolgáltatásnak. A Hype Productions Kft. nem felel az ügyfél által elmulasztott letöltésből vagy biztonsági mentés hiányából eredő károkért.",
-    },
-    {
-      h: "9. Panaszkezelés",
-      p: "Az ügyfél a szolgáltatással kapcsolatos panaszát az info@hypestab.hu e-mail címen jelentheti be. A szolgáltató a panaszt annak beérkezésétől számított 30 napon belül kivizsgálja és megválaszolja.",
-    },
-    {
-      h: "10. Adatkezelés",
-      p: "A személyes adatok kezelésére a Hype Productions Kft. Adatkezelési Tájékoztatója irányadó.",
-    },
-    {
-      h: "11. Irányadó jog",
-      p: "Jelen ÁSZF-re a magyar jog szabályai alkalmazandók. A jelen ÁSZF-ben nem szabályozott kérdésekben különösen a Polgári Törvénykönyv, az elektronikus kereskedelmi szolgáltatásokról szóló törvény, valamint a fogyasztóvédelmi és adatvédelmi jogszabályok rendelkezései az irányadók.",
-    },
-  ];
-
-  return (
-    <AnimatePresence>
-      <motion.div
-        className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto bg-black/80 backdrop-blur-sm p-4 sm:p-8"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        onClick={onClose}
-      >
-        <motion.div
-          className="relative my-8 w-full max-w-2xl rounded-2xl border border-ink-line bg-ink-card p-6 sm:p-10"
-          initial={{ scale: 0.97, opacity: 0, y: 12 }}
-          animate={{ scale: 1, opacity: 1, y: 0 }}
-          exit={{ scale: 0.97, opacity: 0, y: 12 }}
-          transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <button
-            aria-label="Bezárás"
-            onClick={onClose}
-            className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full border border-ink-line text-mist transition hover:bg-white/5 hover:text-bone"
-          >
-            <X className="h-5 w-5" />
-          </button>
-
-          <h2 className="pr-12 font-display text-2xl text-bone">
-            Általános Szerződési Feltételek
-          </h2>
-          <p className="mt-1 font-mono text-[11px] uppercase tracking-eyebrow text-mist">
-            Hatályos: 2026
-          </p>
-
-          <div className="mt-6 space-y-5 text-sm leading-relaxed text-mist">
-            {sections.map((s) => (
-              <div key={s.h}>
-                <h3 className="font-display text-base text-bone">{s.h}</h3>
-                <p className="mt-2">{s.p}</p>
-              </div>
-            ))}
-          </div>
-        </motion.div>
-      </motion.div>
-    </AnimatePresence>
+        </div>
+      </div>
+    </div>
   );
 }
