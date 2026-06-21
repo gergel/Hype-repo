@@ -620,7 +620,7 @@ function ImageLightbox({
                 src={image.thumbnail_url}
                 alt=""
                 aria-hidden="true"
-                className="absolute left-1/2 top-1/2 max-h-[78vh] w-auto max-w-full -translate-x-1/2 -translate-y-1/2 rounded-2xl object-contain blur-xl"
+                className="absolute left-1/2 top-1/2 max-h-[78vh] w-auto max-w-full -translate-x-1/2 -translate-y-1/2 rounded-2xl object-contain blur-sm"
               />
             )}
             {/* eslint-disable-next-line @next/next/no-img-element */}
