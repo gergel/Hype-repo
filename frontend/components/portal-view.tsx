@@ -501,6 +501,8 @@ function ImageGrid({
           <img
             src={img.thumbnail_url || img.url}
             alt={img.title}
+            loading="lazy"
+            decoding="async"
             className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
           />
           <div className="absolute inset-0 bg-black/0 transition group-hover:bg-black/20" />
