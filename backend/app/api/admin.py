@@ -1,6 +1,9 @@
 import os
+import io
 import tempfile
 import uuid
+
+from PIL import Image as PILImage
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from datetime import datetime, timezone, timedelta
@@ -458,13 +461,32 @@ async def upload_image(
         image.folder_id = folder_id
     db.add(image)
     db.flush()
+
     data = await file.read()
     ext = (file.filename or "image.jpg").split(".")[-1].lower()
     key = f"images/{image.id}/original.{ext}"
     storage.upload_bytes(data, key, file.content_type or "image/jpeg")
+
+    # --- Thumbnail generálás (max 400px, JPEG ~70%) ---
+    thumb_url = ""
+    try:
+        img = PILImage.open(io.BytesIO(data))
+        img = img.convert("RGB")
+        img.thumbnail((400, 400))  # arányos kicsinyítés, max 400px
+        buf = io.BytesIO()
+        img.save(buf, format="JPEG", quality=70, optimize=True)
+        thumb_bytes = buf.getvalue()
+        thumb_key = f"images/{image.id}/thumb.jpg"
+        storage.upload_bytes(thumb_bytes, thumb_key, "image/jpeg")
+        thumb_url = storage.public_url(thumb_key)
+    except Exception:
+        # ha a thumbnail nem készül el, az eredetit használjuk
+        thumb_url = ""
+
     max_order = max([i.sort_order for i in project.images], default=-1)
     image.title = (file.filename or "").rsplit(".", 1)[0]
     image.url = storage.public_url(key)
+    image.thumbnail_url = thumb_url
     image.key = key
     image.size_bytes = len(data)
     image.sort_order = max_order + 1
