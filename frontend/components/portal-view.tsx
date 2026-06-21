@@ -77,6 +77,8 @@ export default function AdminProjectPage() {
   const replaceId = useRef<string>("");
   const coverRef = useRef<HTMLInputElement>(null);
   const dragId = useRef<string>("");
+  const cancelUpload = useRef(false);
+  const abortController = useRef<AbortController | null>(null);
 
   const [prompt, setPrompt] = useState<{
     title: string;
