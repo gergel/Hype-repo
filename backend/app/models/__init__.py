@@ -124,7 +124,8 @@ class Image(Base):
         String, ForeignKey("folders.id", ondelete="SET NULL"), nullable=True, index=True
     )
     title = Column(String, default="")
-    url = Column(String, default="")          # public URL in R2
+    url = Column(String, default="")            # public URL in R2
+    thumbnail_url = Column(String, default="")          
     key = Column(String, default="")          # storage key in R2
     width = Column(Integer, default=0)
     height = Column(Integer, default=0)
