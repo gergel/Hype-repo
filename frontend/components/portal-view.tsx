@@ -524,6 +524,7 @@ function ImageLightbox({
   onNavigate: (index: number) => void;
 }) {
   const [preparing, setPreparing] = useState(false);
+  const [loaded, setLoaded] = useState(false);
   const image = images[index];
   const hasPrev = index > 0;
   const hasNext = index < images.length - 1;
@@ -545,6 +546,10 @@ function ImageLightbox({
     return () => window.removeEventListener("keydown", onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [index, images.length]);
+
+  useEffect(() => {
+    setLoaded(false);
+  }, [index]);
 
   async function handleDownload() {
     if (preparing) return;
@@ -608,21 +613,24 @@ function ImageLightbox({
           transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="relative flex max-h-[78vh] items-center justify-center">
-            {image.thumbnail_url && (
+          <div className="relative flex items-center justify-center">
+            {image.thumbnail_url && !loaded && (
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={image.thumbnail_url}
                 alt=""
                 aria-hidden="true"
-                className="absolute inset-0 h-full w-full rounded-2xl object-contain blur-lg"
+                className="absolute left-1/2 top-1/2 max-h-[78vh] w-auto max-w-full -translate-x-1/2 -translate-y-1/2 rounded-2xl object-contain blur-xl"
               />
             )}
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={image.url}
               alt={image.title}
-              className="relative max-h-[78vh] w-auto rounded-2xl object-contain"
+              onLoad={() => setLoaded(true)}
+              className={`max-h-[78vh] w-auto rounded-2xl object-contain transition-opacity duration-300 ${
+                loaded ? "opacity-100" : "opacity-0"
+              }`}
             />
           </div>
           <div className="flex items-center gap-4">
