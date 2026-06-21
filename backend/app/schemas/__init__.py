@@ -81,6 +81,7 @@ class ProjectBase(BaseModel):
 class ProjectCreate(ProjectBase):
     slug: Optional[str] = None
     password: Optional[str] = None
+    status: str = "live"
 
 
 class ProjectUpdate(BaseModel):
