@@ -237,7 +237,8 @@ export async function deleteFolder(folderId: string) {
 export async function uploadImage(
   projectId: string,
   file: File,
-  folderId?: string | null
+  folderId?: string | null,
+  signal?: AbortSignal
 ) {
   const fd = new FormData();
   fd.append("file", file);
@@ -246,6 +247,7 @@ export async function uploadImage(
     method: "POST",
     headers: authHeaders(),
     body: fd,
+    signal,
   });
   if (res.status === 401) {
     handleUnauthorized();
@@ -254,7 +256,6 @@ export async function uploadImage(
   if (!res.ok) throw new Error("Image upload failed");
   return res.json() as Promise<Image>;
 }
-
 export async function deleteImage(imageId: string) {
   return req(`/admin/images/${imageId}`, {
     method: "DELETE",
