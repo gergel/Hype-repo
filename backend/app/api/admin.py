@@ -472,9 +472,9 @@ async def upload_image(
     try:
         img = PILImage.open(io.BytesIO(data))
         img = img.convert("RGB")
-        img.thumbnail((400, 400))  # arányos kicsinyítés, max 400px
+        img.thumbnail((1200, 1200))  # arányos kicsinyítés, max 400px
         buf = io.BytesIO()
-        img.save(buf, format="JPEG", quality=70, optimize=True)
+        img.save(buf, format="JPEG", quality=75, optimize=True)
         thumb_bytes = buf.getvalue()
         thumb_key = f"images/{image.id}/thumb.jpg"
         storage.upload_bytes(thumb_bytes, thumb_key, "image/jpeg")
