@@ -851,7 +851,7 @@ function makeShare() {
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
-                      src={img.url}
+                      src={img.thumbnail_url || img.url}
                       alt={img.title}
                       loading="lazy"
                       decoding="async"
