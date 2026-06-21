@@ -161,12 +161,23 @@ function daysLeft(): number | null {
     const imageFiles = files.filter((f) => f.type.startsWith("image/"));
     const otherFiles = files.filter((f) => !f.type.startsWith("image/"));
 
-    // --- Képek: kötegelt feltöltés (egyszerre 4) összevont folyamatjelzővel ---
+    // --- Képek: kötegelt feltöltés (egyszerre 2) összevont folyamatjelzővel ---
     if (imageFiles.length > 0) {
-      const CONCURRENCY = 4;
+      const CONCURRENCY = 2;
       let done = 0;
       const startedAt = Date.now();
       setBatch({ total: imageFiles.length, done: 0, startedAt });
+
+      // A frissen feltöltött képeket pufferbe gyűjtjük, és időnként
+      // egyszerre tesszük a rácsba — így nem renderel minden képnél.
+      let buffer: ImageType[] = [];
+      const flushTimer = setInterval(() => {
+        if (buffer.length > 0) {
+          const toAdd = buffer;
+          buffer = [];
+          setImages((prev) => [...prev, ...toAdd]);
+        }
+      }, 1500);
 
       let cursor = 0;
       async function worker() {
@@ -175,17 +186,14 @@ function daysLeft(): number | null {
           const file = imageFiles[myIndex];
           try {
             const created = await uploadImage(id, file, targetFolder);
-            // Azonnal megjelenítjük a feltöltött képet a rácsban (thumbnaillel)
             if (created && (created as ImageType).id) {
-              setImages((prev) => [...prev, created as ImageType]);
+              buffer.push(created as ImageType);
             }
           } catch {
             // egy hibás kép ne állítsa meg az egészet
           }
           done++;
-          // Csak minden 4. képnél (és az utolsónál) frissítjük a jelzőt,
-          // hogy ne renderelje újra az oldalt minden egyes képnél
-          if (done % 4 === 0 || done === imageFiles.length) {
+          if (done % 5 === 0 || done === imageFiles.length) {
             setBatch((b) => (b ? { ...b, done } : b));
           }
         }
@@ -195,6 +203,12 @@ function daysLeft(): number | null {
         () => worker()
       );
       await Promise.all(workers);
+
+      // utolsó puffer kiürítése
+      clearInterval(flushTimer);
+      if (buffer.length > 0) {
+        setImages((prev) => [...prev, ...buffer]);
+      }
       setBatch(null);
       // Hogy a frissen feltöltött képek látszódjanak a rácsban
       setImageLimit((n) => n + imageFiles.length);
