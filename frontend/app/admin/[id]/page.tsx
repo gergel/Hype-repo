@@ -34,7 +34,6 @@ import {
   deleteVideo,
   reorderVideos,
   deleteProject,
-  regenShare,
   Video,
 } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -69,6 +68,12 @@ export default function AdminProjectPage() {
   const [saved, setSaved] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploads, setUploads] = useState<{ name: string; percent: number }[]>([]);
+  const [batch, setBatch] = useState<{
+    total: number;
+    done: number;
+    startedAt: number;
+  } | null>(null);
+  const [imageLimit, setImageLimit] = useState(60);
   const replaceRef = useRef<HTMLInputElement>(null);
   const replaceId = useRef<string>("");
   const coverRef = useRef<HTMLInputElement>(null);
@@ -151,19 +156,43 @@ function daysLeft(): number | null {
   async function onUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files || []);
     const targetFolder = currentFolder;
-    for (const file of files) {
-      const name = file.name.replace(/\.[^.]+$/, "");
-      if (file.type.startsWith("image/")) {
-        setUploads((u) => [...u, { name, percent: 0 }]);
-        try {
-          await uploadImage(id, file, targetFolder);
-        } finally {
-          setTimeout(() => {
-            setUploads((u) => u.filter((item) => item.name !== name));
-          }, 800);
+    if (e.target) e.target.value = ""; // reset, hogy ugyanazt újra lehessen választani
+
+    const imageFiles = files.filter((f) => f.type.startsWith("image/"));
+    const otherFiles = files.filter((f) => !f.type.startsWith("image/"));
+
+    // --- Képek: kötegelt feltöltés (egyszerre 4) összevont folyamatjelzővel ---
+    if (imageFiles.length > 0) {
+      const CONCURRENCY = 4;
+      let done = 0;
+      const startedAt = Date.now();
+      setBatch({ total: imageFiles.length, done: 0, startedAt });
+
+      let cursor = 0;
+      async function worker() {
+        while (cursor < imageFiles.length) {
+          const myIndex = cursor++;
+          const file = imageFiles[myIndex];
+          try {
+            await uploadImage(id, file, targetFolder);
+          } catch {
+            // egy hibás kép ne állítsa meg az egészet
+          }
+          done++;
+          setBatch((b) => (b ? { ...b, done } : b));
         }
-        continue;
       }
+      const workers = Array.from(
+        { length: Math.min(CONCURRENCY, imageFiles.length) },
+        () => worker()
+      );
+      await Promise.all(workers);
+      setBatch(null);
+    }
+
+    // --- Videók: egyesével, a meglévő folyamatjelzővel ---
+    for (const file of otherFiles) {
+      const name = file.name.replace(/\.[^.]+$/, "");
       setUploads((u) => [...u, { name, percent: 0 }]);
       try {
         const result = await uploadVideo(id, file, name, (percent) => {
@@ -180,6 +209,7 @@ function daysLeft(): number | null {
         }, 1500);
       }
     }
+
     refresh();
   }
 
@@ -637,6 +667,32 @@ function makeShare() {
             </div>
           )}
 
+          {batch && (
+            <div className="mt-4 rounded-xl border border-ember/40 bg-ember/10 px-3 py-3">
+              <div className="mb-1.5 flex items-center justify-between">
+                <span className="text-sm text-bone">
+                  Feltöltés: {batch.done} / {batch.total} kép
+                </span>
+                <span className="font-mono text-[11px] text-mist">
+                  {(() => {
+                    if (batch.done === 0) return "Becslés…";
+                    const elapsed = (Date.now() - batch.startedAt) / 1000;
+                    const perItem = elapsed / batch.done;
+                    const remaining = Math.round(perItem * (batch.total - batch.done));
+                    if (remaining < 60) return `~${remaining} mp van hátra`;
+                    return `~${Math.ceil(remaining / 60)} perc van hátra`;
+                  })()}
+                </span>
+              </div>
+              <div className="h-1.5 w-full overflow-hidden rounded-full bg-ink-line">
+                <div
+                  className="h-full rounded-full bg-ember transition-all duration-300"
+                  style={{ width: `${Math.round((batch.done / batch.total) * 100)}%` }}
+                />
+              </div>
+            </div>
+          )}
+
           {uploads.length > 0 && (
             <div className="mt-4 space-y-2">
               {uploads.map((u) => (
@@ -783,10 +839,10 @@ function makeShare() {
           {visibleImages.length > 0 && (
             <div className="mt-6">
               <h3 className="mb-3 font-mono text-[11px] uppercase tracking-eyebrow text-mist">
-                Images
+                Images ({visibleImages.length})
               </h3>
               <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
-                {visibleImages.map((img) => (
+                {visibleImages.slice(0, imageLimit).map((img) => (
                   <div
                     key={img.id}
                     className={`group relative aspect-square overflow-hidden rounded-lg border bg-ink-soft ${
@@ -797,6 +853,8 @@ function makeShare() {
                     <img
                       src={img.url}
                       alt={img.title}
+                      loading="lazy"
+                      decoding="async"
                       className="h-full w-full object-cover"
                     />
                     <label
@@ -831,6 +889,14 @@ function makeShare() {
                   </div>
                 ))}
               </div>
+              {visibleImages.length > imageLimit && (
+                <button
+                  onClick={() => setImageLimit((n) => n + 60)}
+                  className="mt-4 w-full rounded-full border border-ink-line py-2.5 text-sm text-bone transition hover:border-ember/60"
+                >
+                  Több kép betöltése ({visibleImages.length - imageLimit} hátra)
+                </button>
+              )}
             </div>
           )}
         </section>
