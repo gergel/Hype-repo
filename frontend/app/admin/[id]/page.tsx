@@ -174,12 +174,20 @@ function daysLeft(): number | null {
           const myIndex = cursor++;
           const file = imageFiles[myIndex];
           try {
-            await uploadImage(id, file, targetFolder);
+            const created = await uploadImage(id, file, targetFolder);
+            // Azonnal megjelenítjük a feltöltött képet a rácsban (thumbnaillel)
+            if (created && (created as ImageType).id) {
+              setImages((prev) => [...prev, created as ImageType]);
+            }
           } catch {
             // egy hibás kép ne állítsa meg az egészet
           }
           done++;
-          setBatch((b) => (b ? { ...b, done } : b));
+          // Csak minden 4. képnél (és az utolsónál) frissítjük a jelzőt,
+          // hogy ne renderelje újra az oldalt minden egyes képnél
+          if (done % 4 === 0 || done === imageFiles.length) {
+            setBatch((b) => (b ? { ...b, done } : b));
+          }
         }
       }
       const workers = Array.from(
@@ -188,6 +196,8 @@ function daysLeft(): number | null {
       );
       await Promise.all(workers);
       setBatch(null);
+      // Hogy a frissen feltöltött képek látszódjanak a rácsban
+      setImageLimit((n) => n + imageFiles.length);
     }
 
     // --- Videók: egyesével, a meglévő folyamatjelzővel ---
@@ -208,9 +218,9 @@ function daysLeft(): number | null {
           setUploads((u) => u.filter((item) => item.name !== name));
         }, 1500);
       }
+      // Videó után frissítünk (kevés van belőle)
+      refresh();
     }
-
-    refresh();
   }
 
   async function onCoverUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -851,7 +861,7 @@ function makeShare() {
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
-                      src={img.thumbnail_url || img.url}
+                      src={img.url}
                       alt={img.title}
                       loading="lazy"
                       decoding="async"
