@@ -196,23 +196,3 @@ export async function downloadImagesAll(
   a.remove();
   setTimeout(() => URL.revokeObjectURL(blobUrl), 2000);
 }
-
-  // 2) Hozzáadás a ZIP-hez tömörítés nélkül (STORE)
-  for (const item of blobs) {
-    if (!item) continue;
-    const ext = (item.blob.type.split("/")[1] || "jpg").split("+")[0];
-    const safeTitle = (item.title || `image-${item.index}`).replace(/[^\w.-]+/g, "_");
-    zip.file(`${safeTitle}.${ext}`, item.blob, { compression: "STORE" });
-  }
-
-  // 3) ZIP generálás tömörítés nélkül
-  const content = await zip.generateAsync({ type: "blob", compression: "STORE" });
-  const blobUrl = URL.createObjectURL(content);
-  const a = document.createElement("a");
-  a.href = blobUrl;
-  a.download = "photos.zip";
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(blobUrl), 2000);
-}
