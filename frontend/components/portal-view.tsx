@@ -737,17 +737,47 @@ function ImagesDownloadButton({
   label: string;
 }) {
   const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
+  const startedAt = useRef<number>(0);
 
   async function handleDownload() {
     if (busy) return;
     setBusy(true);
+    setProgress({ done: 0, total: images.length });
+    startedAt.current = Date.now();
     try {
-      await downloadImagesAll(images.map((i) => ({ id: i.id, title: i.title })));
+      await downloadImagesAll(
+        images.map((i) => ({ id: i.id, title: i.title })),
+        (done, total) => setProgress({ done, total })
+      );
     } finally {
       setBusy(false);
+      setProgress(null);
     }
   }
 
+  function progressLabel() {
+    if (!progress) return "Preparing…";
+    const { done, total } = progress;
+    if (done === 0) return `0 / ${total}`;
+    const elapsed = (Date.now() - startedAt.current) / 1000;
+    const remaining = Math.round((elapsed / done) * (total - done));
+    const timeStr =
+      remaining < 60 ? `~${remaining} mp` : `~${Math.ceil(remaining / 60)} perc`;
+    return `${done} / ${total} · ${timeStr}`;
+  }
+
+  return (
+    <button
+      onClick={handleDownload}
+      disabled={busy}
+      className="flex shrink-0 items-center gap-2 whitespace-nowrap rounded-full bg-bone px-5 py-2.5 text-sm font-medium text-ink transition hover:bg-white disabled:opacity-60"
+    >
+      {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+      {busy ? progressLabel() : label}
+    </button>
+  );
+}
   return (
     <button
       onClick={handleDownload}
