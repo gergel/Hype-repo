@@ -153,6 +153,11 @@ function daysLeft(): number | null {
     refresh();
   }
 
+  function cancelUploadNow() {
+    cancelUpload.current = true;
+    abortController.current?.abort();
+  }
+
   async function onUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files || []);
     const targetFolder = currentFolder;
@@ -166,6 +171,8 @@ function daysLeft(): number | null {
       const CONCURRENCY = 2;
       let done = 0;
       const startedAt = Date.now();
+      cancelUpload.current = false;
+      abortController.current = new AbortController();
       setBatch({ total: imageFiles.length, done: 0, startedAt });
 
       // A frissen feltöltött képeket pufferbe gyűjtjük, és időnként
@@ -182,15 +189,21 @@ function daysLeft(): number | null {
       let cursor = 0;
       async function worker() {
         while (cursor < imageFiles.length) {
+          if (cancelUpload.current) return; // leállítás: a hátralévőket kihagyjuk
           const myIndex = cursor++;
           const file = imageFiles[myIndex];
           try {
-            const created = await uploadImage(id, file, targetFolder);
+            const created = await uploadImage(
+              id,
+              file,
+              targetFolder,
+              abortController.current?.signal
+            );
             if (created && (created as ImageType).id) {
               buffer.push(created as ImageType);
             }
           } catch {
-            // egy hibás kép ne állítsa meg az egészet
+            // megszakítás vagy hibás kép — ne állítsa meg a többit
           }
           done++;
           if (done % 5 === 0 || done === imageFiles.length) {
@@ -210,6 +223,7 @@ function daysLeft(): number | null {
         setImages((prev) => [...prev, ...buffer]);
       }
       setBatch(null);
+      abortController.current = null;
       // Hogy a frissen feltöltött képek látszódjanak a rácsban
       setImageLimit((n) => n + imageFiles.length);
     }
@@ -714,6 +728,12 @@ function makeShare() {
                   style={{ width: `${Math.round((batch.done / batch.total) * 100)}%` }}
                 />
               </div>
+              <button
+                onClick={cancelUploadNow}
+                className="mt-2.5 w-full rounded-full border border-ember/50 py-1.5 text-xs text-ember transition hover:bg-ember/20"
+              >
+                Feltöltés leállítása
+              </button>
             </div>
           )}
 
