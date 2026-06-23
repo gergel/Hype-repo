@@ -50,7 +50,10 @@ export async function downloadVideo(
 
   if (isSmall) {
     try {
-      const res = await fetch(mp4Url, { mode: "cors" });
+      // FONTOS: a presigned download URL-ről fetchelünk (CORS-t ad),
+      // nem az r2.dev publikus URL-ről (az nem ad CORS-t, és elbukna a fetch).
+      const dlUrl = await getVideoDownloadUrl(videoId);
+      const res = await fetch(dlUrl, { mode: "cors" });
       const blob = await res.blob();
 
       if (isMobileDevice()) {
