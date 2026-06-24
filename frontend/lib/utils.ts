@@ -102,26 +102,18 @@ export async function downloadVideo(
     }
   }
 
-  // Gépen: blob letöltés (mappába)
+// Gépen: a böngésző NATÍV letöltőjét használjuk (streamel, azonnal indul,
+  // nem tölti memóriába a teljes fájlt). A presigned URL attachment-ként jön.
   try {
     const dlUrl = await getVideoDownloadUrl(videoId);
-    const res = await fetch(dlUrl, { mode: "cors" });
-    const blob = await res.blob();
-    const blobUrl = window.URL.createObjectURL(blob);
     const a = document.createElement("a");
-    a.href = blobUrl;
+    a.href = dlUrl;
     a.download = filename;
     document.body.appendChild(a);
     a.click();
     a.remove();
-    window.URL.revokeObjectURL(blobUrl);
   } catch {
-    try {
-      const url = await getVideoDownloadUrl(videoId);
-      window.location.href = url;
-    } catch {
-      window.open(mp4Url, "_blank");
-    }
+    window.open(mp4Url, "_blank");
   }
 }
 
