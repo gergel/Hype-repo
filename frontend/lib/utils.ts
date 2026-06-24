@@ -37,9 +37,10 @@ function isMobileDevice(): boolean {
   return isTouchMobile && typeof nav.canShare === "function";
 }
 
-const SHARE_LIMIT = 50 * 1024 * 1024; // iOS Web Share kb. 50 MB-os fájlkorlát
+const SHARE_LIMIT = 100 * 1024 * 1024; // iOS Web Share kb. 100 MB-os fájlkorlát (galériába mentés)
 
-// Letöltés: mobilon 50 MB alatt megosztás (galériába), felette Fájlok (várakozás nélkül)
+// Letöltés: mobilon 100 MB alatt megosztás (galériába), felette natív letöltő (Fájlok).
+// Gépen mindig a böngésző natív letöltője (streamel, nincs blob-várakozás).
 export async function downloadVideo(
   videoId: string,
   mp4Url: string,
@@ -51,12 +52,12 @@ export async function downloadVideo(
     share?: (data: { files?: File[]; title?: string }) => Promise<void>;
   };
 
+  // ---- Mobil ----
   if (isMobileDevice() && nav.share) {
     try {
       const dlUrl = await getVideoDownloadUrl(videoId);
 
-      // Méret meghatározása: előbb a megadott size, ha 0, akkor HEAD kérés
-      // (Content-Length) — ez gyors, NEM tölti le a fájlt.
+      // Méret: a megadott size, ha 0, akkor gyors HEAD kérés (Content-Length).
       let size = sizeBytes;
       if (!size || size <= 0) {
         try {
@@ -68,14 +69,13 @@ export async function downloadVideo(
         }
       }
 
-      // Nagy fájl (vagy ismeretlen, de a HEAD nagyot adott) → egyből Fájlok,
-      // NEM töltjük le blobként (nincs hosszú várakozás).
+      // 50 MB felett (vagy ismeretlen, de nagy): NATÍV letöltő, NEM blobozunk.
       if (size > 0 && size >= SHARE_LIMIT) {
         window.location.href = dlUrl;
         return;
       }
 
-      // Kis fájl → letöltjük blobként és megosztjuk (galériába)
+      // 100 MB alatt: letöltjük blobként és megosztjuk (galériába mentés).
       const res = await fetch(dlUrl, { mode: "cors" });
       const blob = await res.blob();
       const file = new File([blob], filename, { type: blob.type || "video/mp4" });
@@ -84,13 +84,12 @@ export async function downloadVideo(
         await nav.share({ files: [file], title: filename });
         return;
       }
-      // ha mégsem osztható meg → letöltés
+      // ha mégsem osztható meg → natív letöltő
       window.location.href = dlUrl;
       return;
     } catch (err) {
       const e = err as { name?: string };
-      if (e && e.name === "AbortError") return; // felhasználó zárta be
-      // egyéb hiba → essünk a letöltésbe
+      if (e && e.name === "AbortError") return; // felhasználó zárta be a megosztást
       try {
         const url = await getVideoDownloadUrl(videoId);
         window.location.href = url;
@@ -102,6 +101,20 @@ export async function downloadVideo(
     }
   }
 
+  // ---- Gép ----
+  // A böngésző natív letöltője (streamel, azonnal indul, nincs blob-várakozás).
+  try {
+    const dlUrl = await getVideoDownloadUrl(videoId);
+    const a = document.createElement("a");
+    a.href = dlUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  } catch {
+    window.open(mp4Url, "_blank");
+  }
+}
 // Gépen: a böngésző NATÍV letöltőjét használjuk (streamel, azonnal indul,
   // nem tölti memóriába a teljes fájlt). A presigned URL attachment-ként jön.
   try {
