@@ -40,6 +40,7 @@ function isMobileDevice(): boolean {
 const SHARE_LIMIT = 50 * 1024 * 1024; // iOS Web Share kb. 50 MB-os fájlkorlát
 
 // Letöltés: mobilon 50 MB alatt megosztás (galériába), felette/gépen letöltés
+// Letöltés: mobilon megosztás (galériába); ha nem megy (pl. túl nagy iOS-en), Fájlok
 export async function downloadVideo(
   videoId: string,
   mp4Url: string,
@@ -51,10 +52,11 @@ export async function downloadVideo(
     share?: (data: { files?: File[]; title?: string }) => Promise<void>;
   };
 
-  const isSmall = sizeBytes > 0 && sizeBytes < SHARE_LIMIT;
-
-  // Mobilon, 50 MB alatt: megosztási lap (galériába mentés).
-  if (isSmall && isMobileDevice() && nav.share) {
+  // Mobilon: megpróbáljuk a megosztást (galériába mentés).
+  // Nem a méretre bízzuk a döntést, hanem ha az iOS elutasítja
+  // (pl. túl nagy fájl), elkapjuk és átesünk a letöltésbe.
+  if (isMobileDevice() && nav.share) {
+    let shareFailed = false;
     try {
       const dlUrl = await getVideoDownloadUrl(videoId);
       const res = await fetch(dlUrl, { mode: "cors" });
@@ -63,28 +65,32 @@ export async function downloadVideo(
 
       if (nav.canShare && nav.canShare({ files: [file] })) {
         await nav.share({ files: [file], title: filename });
+        return; // sikeres megosztás
+      } else {
+        shareFailed = true; // a fájl nem osztható meg (pl. túl nagy)
+      }
+    } catch (err) {
+      // A felhasználó megszakította? Akkor ne töltsünk le mást.
+      const e = err as { name?: string };
+      if (e && e.name === "AbortError") return;
+      shareFailed = true;
+    }
+
+    // Ha a megosztás nem volt lehetséges → közvetlen letöltés (Fájlok)
+    if (shareFailed) {
+      try {
+        const url = await getVideoDownloadUrl(videoId);
+        window.location.href = url;
+        return;
+      } catch {
+        window.open(mp4Url, "_blank");
         return;
       }
-    } catch {
-      // ha a megosztás nem megy, essünk át a letöltésre
     }
+    return;
   }
 
-  // 50 MB felett, vagy gépen, vagy ha a megosztás nem elérhető: letöltés.
-  // Nagy fájlnál NEM töltünk blobot (iOS-en úgyis a Fájlokba megy) —
-  // közvetlenül a presigned URL-re navigálunk, így rögtön indul.
-  if (!isSmall) {
-    try {
-      const url = await getVideoDownloadUrl(videoId);
-      window.location.href = url;
-      return;
-    } catch {
-      window.open(mp4Url, "_blank");
-      return;
-    }
-  }
-
-  // Kis fájl gépen (vagy mobil megosztás bukás után): blob letöltés
+  // Gépen: blob letöltés (mappába)
   try {
     const dlUrl = await getVideoDownloadUrl(videoId);
     const res = await fetch(dlUrl, { mode: "cors" });
