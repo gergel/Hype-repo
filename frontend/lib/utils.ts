@@ -39,58 +39,56 @@ function isMobileDevice(): boolean {
 
 const SHARE_LIMIT = 300 * 1024 * 1024; // 300 MB alatt: blob + mobil megosztás
 
-// Letöltés: kis fájl blob (mobil megosztással), nagy fájl közvetlen R2.
+// Letöltés: mobilon megosztás (galériába), gépen letöltés
 export async function downloadVideo(
   videoId: string,
   mp4Url: string,
   filename: string,
   sizeBytes: number
 ) {
-  const isSmall = sizeBytes > 0 && sizeBytes < SHARE_LIMIT;
+  const nav = navigator as Navigator & {
+    canShare?: (data: { files: File[] }) => boolean;
+    share?: (data: { files?: File[]; title?: string }) => Promise<void>;
+  };
 
-  if (isSmall) {
+  // Mobilon: a megosztási lapot próbáljuk (galériába mentés).
+  // A gesztus megőrzéséhez a share-t a fetch köré szervezzük.
+  if (isMobileDevice() && nav.share) {
     try {
-      // FONTOS: a presigned download URL-ről fetchelünk (CORS-t ad),
-      // nem az r2.dev publikus URL-ről (az nem ad CORS-t, és elbukna a fetch).
       const dlUrl = await getVideoDownloadUrl(videoId);
       const res = await fetch(dlUrl, { mode: "cors" });
       const blob = await res.blob();
+      const file = new File([blob], filename, { type: blob.type || "video/mp4" });
 
-      if (isMobileDevice()) {
-        const file = new File([blob], filename, { type: blob.type || "video/mp4" });
-        const nav = navigator as Navigator & {
-          canShare?: (data: { files: File[] }) => boolean;
-          share?: (data: { files: File[]; title?: string }) => Promise<void>;
-        };
-        if (nav.canShare && nav.canShare({ files: [file] }) && nav.share) {
-          try {
-            await nav.share({ files: [file], title: filename });
-            return;
-          } catch {
-            // megszakítva → sima letöltés
-          }
-        }
+      if (nav.canShare && nav.canShare({ files: [file] })) {
+        await nav.share({ files: [file], title: filename });
+        return;
       }
-
-      const blobUrl = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = blobUrl;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.URL.revokeObjectURL(blobUrl);
-      return;
     } catch {
-      // ha a blob nem ment, essünk át a közvetlen letöltésre
+      // ha a megosztás nem megy, essünk át a letöltésre
     }
   }
 
+  // Gépen vagy ha a megosztás nem elérhető: letöltés
   try {
-    const url = await getVideoDownloadUrl(videoId);
-    window.location.href = url;
+    const dlUrl = await getVideoDownloadUrl(videoId);
+    const res = await fetch(dlUrl, { mode: "cors" });
+    const blob = await res.blob();
+    const blobUrl = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = blobUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(blobUrl);
   } catch {
-    window.open(mp4Url, "_blank");
+    try {
+      const url = await getVideoDownloadUrl(videoId);
+      window.location.href = url;
+    } catch {
+      window.open(mp4Url, "_blank");
+    }
   }
 }
 
