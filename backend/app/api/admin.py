@@ -390,6 +390,31 @@ def reorder_videos(
     return {"ok": True}
 
 
+@router.post("/maintenance/backfill-video-sizes")
+def backfill_video_sizes(db: Session = Depends(get_db), _: str = Depends(require_admin)):
+    """Egyszeri: a méret nélküli videók size_bytes mezőjét pótolja az R2-ből."""
+    videos = db.query(Video).all()
+    client = storage._client()
+    updated = 0
+    skipped = 0
+    for v in videos:
+        if v.size_bytes and v.size_bytes > 0:
+            skipped += 1
+            continue
+        if not v.source_key:
+            skipped += 1
+            continue
+        try:
+            head = client.head_object(Bucket=settings.R2_BUCKET, Key=v.source_key)
+            size = int(head.get("ContentLength") or 0)
+            if size > 0:
+                v.size_bytes = size
+                updated += 1
+        except Exception:
+            skipped += 1
+    db.commit()
+    return {"updated": updated, "skipped": skipped, "total": len(videos)}
+
 
 # ---------------- Folders ----------------
 @router.post("/projects/{project_id}/folders", response_model=FolderOut)
