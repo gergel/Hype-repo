@@ -383,7 +383,7 @@ function FolderSection({
   onPlay: (v: Video) => void;
   accent?: string;
 }) {
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
 
   return (
     <div>
@@ -439,7 +439,7 @@ function ImageFolderSection({
   onOpen: (images: ImageType[], index: number) => void;
   accent?: string;
 }) {
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
 
   return (
     <div>
