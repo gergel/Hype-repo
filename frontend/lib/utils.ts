@@ -37,9 +37,9 @@ function isMobileDevice(): boolean {
   return isTouchMobile && typeof nav.canShare === "function";
 }
 
-const SHARE_LIMIT = 300 * 1024 * 1024; // 300 MB alatt: blob + mobil megosztás
+const SHARE_LIMIT = 50 * 1024 * 1024; // iOS Web Share kb. 50 MB-os fájlkorlát
 
-// Letöltés: mobilon megosztás (galériába), gépen letöltés
+// Letöltés: mobilon 50 MB alatt megosztás (galériába), felette/gépen letöltés
 export async function downloadVideo(
   videoId: string,
   mp4Url: string,
@@ -51,9 +51,10 @@ export async function downloadVideo(
     share?: (data: { files?: File[]; title?: string }) => Promise<void>;
   };
 
-  // Mobilon: a megosztási lapot próbáljuk (galériába mentés).
-  // A gesztus megőrzéséhez a share-t a fetch köré szervezzük.
-  if (isMobileDevice() && nav.share) {
+  const isSmall = sizeBytes > 0 && sizeBytes < SHARE_LIMIT;
+
+  // Mobilon, 50 MB alatt: megosztási lap (galériába mentés).
+  if (isSmall && isMobileDevice() && nav.share) {
     try {
       const dlUrl = await getVideoDownloadUrl(videoId);
       const res = await fetch(dlUrl, { mode: "cors" });
@@ -69,7 +70,21 @@ export async function downloadVideo(
     }
   }
 
-  // Gépen vagy ha a megosztás nem elérhető: letöltés
+  // 50 MB felett, vagy gépen, vagy ha a megosztás nem elérhető: letöltés.
+  // Nagy fájlnál NEM töltünk blobot (iOS-en úgyis a Fájlokba megy) —
+  // közvetlenül a presigned URL-re navigálunk, így rögtön indul.
+  if (!isSmall) {
+    try {
+      const url = await getVideoDownloadUrl(videoId);
+      window.location.href = url;
+      return;
+    } catch {
+      window.open(mp4Url, "_blank");
+      return;
+    }
+  }
+
+  // Kis fájl gépen (vagy mobil megosztás bukás után): blob letöltés
   try {
     const dlUrl = await getVideoDownloadUrl(videoId);
     const res = await fetch(dlUrl, { mode: "cors" });
@@ -91,7 +106,6 @@ export async function downloadVideo(
     }
   }
 }
-
 // Egy kép letöltése: telón galériába (Web Share), gépen közvetlen letöltés (gyors)
 export async function downloadImage(imageId: string, title?: string) {
   const url = await getImageDownloadUrl(imageId);
