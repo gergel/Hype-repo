@@ -36,6 +36,13 @@ def process_video_task(video_id: str, source_key: str):
         # mp4_url = a már feltöltött eredeti fájl (nincs újra-feltöltés)
         video.mp4_url = storage.public_url(source_key)
         video.source_key = source_key
+        # Fájlméret lekérése az R2-ből (gyors, nem tölti le a fájlt)
+        try:
+            client = storage._client()
+            head = client.head_object(Bucket=settings.R2_BUCKET, Key=source_key)
+            video.size_bytes = int(head.get("ContentLength") or 0)
+        except Exception:
+            pass
 
         # Gyors metaadat + borító az R2 URL-ről
         remote = _remote_url(source_key)
