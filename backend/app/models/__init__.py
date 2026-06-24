@@ -107,7 +107,7 @@ class Video(Base):
     height = Column(Integer, default=0)
     resolution_label = Column(String, default="")  # e.g. "4K", "1080p"
     aspect_ratio_label = Column(String, default="")
-    size_bytes = Column(Integer, default=0)
+    size_bytes = Column(BigInteger, default=0)
     status = Column(String, default="processing")   # processing | ready | failed
     sort_order = Column(Integer, default=0)
     created_at = Column(DateTime(timezone=True), default=_now)
