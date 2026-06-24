@@ -69,8 +69,9 @@ export async function downloadVideo(
         }
       }
 
-      // 50 MB felett (vagy ismeretlen, de nagy): NATÍV letöltő, NEM blobozunk.
-      if (size > 0 && size >= SHARE_LIMIT) {
+      // 100 MB felett (vagy ismeretlen, de nagy): NATÍV letöltő, NEM blobozunk.
+      const knownSmall = size > 0 && size < SHARE_LIMIT;
+      if (!knownSmall) {
         window.location.href = dlUrl;
         return;
       }
