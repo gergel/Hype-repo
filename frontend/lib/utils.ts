@@ -39,8 +39,7 @@ function isMobileDevice(): boolean {
 
 const SHARE_LIMIT = 50 * 1024 * 1024; // iOS Web Share kb. 50 MB-os fájlkorlát
 
-// Letöltés: mobilon 50 MB alatt megosztás (galériába), felette/gépen letöltés
-// Letöltés: mobilon megosztás (galériába); ha nem megy (pl. túl nagy iOS-en), Fájlok
+// Letöltés: mobilon 50 MB alatt megosztás (galériába), felette Fájlok (várakozás nélkül)
 export async function downloadVideo(
   videoId: string,
   mp4Url: string,
@@ -52,32 +51,46 @@ export async function downloadVideo(
     share?: (data: { files?: File[]; title?: string }) => Promise<void>;
   };
 
-  // Mobilon: megpróbáljuk a megosztást (galériába mentés).
-  // Nem a méretre bízzuk a döntést, hanem ha az iOS elutasítja
-  // (pl. túl nagy fájl), elkapjuk és átesünk a letöltésbe.
   if (isMobileDevice() && nav.share) {
-    let shareFailed = false;
     try {
       const dlUrl = await getVideoDownloadUrl(videoId);
+
+      // Méret meghatározása: előbb a megadott size, ha 0, akkor HEAD kérés
+      // (Content-Length) — ez gyors, NEM tölti le a fájlt.
+      let size = sizeBytes;
+      if (!size || size <= 0) {
+        try {
+          const head = await fetch(dlUrl, { method: "HEAD", mode: "cors" });
+          const len = head.headers.get("content-length");
+          size = len ? parseInt(len, 10) : 0;
+        } catch {
+          size = 0;
+        }
+      }
+
+      // Nagy fájl (vagy ismeretlen, de a HEAD nagyot adott) → egyből Fájlok,
+      // NEM töltjük le blobként (nincs hosszú várakozás).
+      if (size > 0 && size >= SHARE_LIMIT) {
+        window.location.href = dlUrl;
+        return;
+      }
+
+      // Kis fájl → letöltjük blobként és megosztjuk (galériába)
       const res = await fetch(dlUrl, { mode: "cors" });
       const blob = await res.blob();
       const file = new File([blob], filename, { type: blob.type || "video/mp4" });
 
       if (nav.canShare && nav.canShare({ files: [file] })) {
         await nav.share({ files: [file], title: filename });
-        return; // sikeres megosztás
-      } else {
-        shareFailed = true; // a fájl nem osztható meg (pl. túl nagy)
+        return;
       }
+      // ha mégsem osztható meg → letöltés
+      window.location.href = dlUrl;
+      return;
     } catch (err) {
-      // A felhasználó megszakította? Akkor ne töltsünk le mást.
       const e = err as { name?: string };
-      if (e && e.name === "AbortError") return;
-      shareFailed = true;
-    }
-
-    // Ha a megosztás nem volt lehetséges → közvetlen letöltés (Fájlok)
-    if (shareFailed) {
+      if (e && e.name === "AbortError") return; // felhasználó zárta be
+      // egyéb hiba → essünk a letöltésbe
       try {
         const url = await getVideoDownloadUrl(videoId);
         window.location.href = url;
@@ -87,7 +100,6 @@ export async function downloadVideo(
         return;
       }
     }
-    return;
   }
 
   // Gépen: blob letöltés (mappába)
@@ -112,6 +124,7 @@ export async function downloadVideo(
     }
   }
 }
+
 // Egy kép letöltése: telón galériába (Web Share), gépen közvetlen letöltés (gyors)
 export async function downloadImage(imageId: string, title?: string) {
   const url = await getImageDownloadUrl(imageId);
