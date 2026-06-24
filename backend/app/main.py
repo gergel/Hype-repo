@@ -27,6 +27,7 @@ def _migrate():
     statements = [
         "ALTER TABLE projects ADD COLUMN IF NOT EXISTS expires_at TIMESTAMP",
         "UPDATE projects SET expires_at = created_at + INTERVAL '180 days' WHERE expires_at IS NULL",
+        "ALTER TABLE videos ALTER COLUMN size_bytes TYPE BIGINT",
     ]
     with engine.begin() as conn:
         for stmt in statements:
