@@ -115,20 +115,7 @@ export async function downloadVideo(
     window.open(mp4Url, "_blank");
   }
 }
-// Gépen: a böngésző NATÍV letöltőjét használjuk (streamel, azonnal indul,
-  // nem tölti memóriába a teljes fájlt). A presigned URL attachment-ként jön.
-  try {
-    const dlUrl = await getVideoDownloadUrl(videoId);
-    const a = document.createElement("a");
-    a.href = dlUrl;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-  } catch {
-    window.open(mp4Url, "_blank");
-  }
-}
+
 
 // Egy kép letöltése: telón galériába (Web Share), gépen közvetlen letöltés (gyors)
 export async function downloadImage(imageId: string, title?: string) {
