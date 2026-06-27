@@ -33,7 +33,7 @@ function Login({ onIn }: { onIn: () => void }) {
       await adminLogin(email, password);
       onIn();
     } catch {
-      setError("Invalid credentials.");
+      setError("Hibás bejelentkezési adatok.");
     }
   }
 
@@ -47,7 +47,7 @@ function Login({ onIn }: { onIn: () => void }) {
         <p className="font-mono text-xs uppercase tracking-eyebrow text-mist">
           HYPE Productions
         </p>
-        <h1 className="mt-2 font-display text-2xl text-bone">Admin sign in</h1>
+        <h1 className="mt-2 font-display text-2xl text-bone">Admin bejelentkezés</h1>
         <input
           placeholder="Email"
           value={email}
@@ -56,7 +56,7 @@ function Login({ onIn }: { onIn: () => void }) {
         />
         <input
           type="password"
-          placeholder="Password"
+          placeholder="Jelszó"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && submit()}
@@ -64,7 +64,7 @@ function Login({ onIn }: { onIn: () => void }) {
         />
         {error && <p className="mt-3 text-sm text-ember">{error}</p>}
         <Button variant="ember" size="lg" className="mt-5 w-full" onClick={submit}>
-          Sign in
+          Bejelentkezés
         </Button>
       </motion.div>
     </main>
@@ -134,22 +134,22 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
     });
 
   return (
-    <main className="mx-auto max-w-5xl px-6 py-16">
-      <div className="flex items-center justify-between">
+    <main className="mx-auto max-w-5xl px-4 py-10 sm:px-6 sm:py-16">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="font-mono text-xs uppercase tracking-eyebrow text-mist">
             HYPE Productions
           </p>
-          <h1 className="mt-1 font-display text-3xl text-bone">Projects</h1>
+          <h1 className="mt-1 font-display text-3xl text-bone">Projektek</h1>
         </div>
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-3">
           <Button variant="ember" onClick={() => setCreating((v) => !v)}>
             <Plus className="h-4 w-4" />
-            New project
+            Új projekt
           </Button>
           <Button variant="ghost" onClick={logout}>
             <LogOut className="h-4 w-4" />
-            Sign out
+            Kijelentkezés
           </Button>
         </div>
       </div>
@@ -157,38 +157,38 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
       {creating && (
         <div className="mt-6 flex flex-wrap items-center gap-3 rounded-2xl border border-ink-line bg-ink-card p-4">
           <input
-            placeholder="Project title"
+            placeholder="Projekt címe"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            className="flex-1 rounded-full border border-ink-line bg-ink px-4 py-2.5 text-bone outline-none focus:border-ember/60"
+            className="w-full min-w-0 flex-1 rounded-full border border-ink-line bg-ink px-4 py-2.5 text-bone outline-none focus:border-ember/60 sm:w-auto"
           />
           <input
-            placeholder="Client name"
+            placeholder="Ügyfél neve"
             value={client}
             onChange={(e) => setClient(e.target.value)}
-            className="flex-1 rounded-full border border-ink-line bg-ink px-4 py-2.5 text-bone outline-none focus:border-ember/60"
+            className="w-full min-w-0 flex-1 rounded-full border border-ink-line bg-ink px-4 py-2.5 text-bone outline-none focus:border-ember/60 sm:w-auto"
           />
-          <Button variant="primary" onClick={doCreate}>
-            Create
+          <Button variant="primary" onClick={doCreate} className="w-full sm:w-auto">
+            Létrehozás
           </Button>
         </div>
       )}
 
       <div className="mt-6 flex flex-wrap items-center gap-3">
         <input
-          placeholder="Search: project, client or date…"
+          placeholder="Keresés: projekt, ügyfél vagy dátum…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="flex-1 rounded-full border border-ink-line bg-ink px-4 py-2.5 text-bone outline-none focus:border-ember/60"
+          className="w-full min-w-0 flex-1 rounded-full border border-ink-line bg-ink px-4 py-2.5 text-bone outline-none focus:border-ember/60 sm:w-auto"
         />
         <select
           value={sortBy}
           onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
-          className="rounded-full border border-ink-line bg-ink px-4 py-2.5 text-bone outline-none focus:border-ember/60"
+          className="w-full rounded-full border border-ink-line bg-ink px-4 py-2.5 text-bone outline-none focus:border-ember/60 sm:w-auto"
         >
-          <option value="date_desc">Date (newest first)</option>
-          <option value="date_asc">Date (oldest first)</option>
-          <option value="name">Name (A–Z)</option>
+          <option value="date_desc">Dátum (legújabb elöl)</option>
+          <option value="date_asc">Dátum (legrégebbi elöl)</option>
+          <option value="name">Név (A–Z)</option>
         </select>
       </div>
 
@@ -196,13 +196,13 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
         {visibleProjects.length === 0 && (
           <p className="p-8 text-center text-mist">
             {projects.length === 0
-              ? "No projects yet. Create one to get started."
-              : "No results for your search."}
+              ? "Még nincs projekt. Hozz létre egyet a kezdéshez."
+              : "Nincs találat a keresésre."}
           </p>
         )}
         {visibleProjects.map((p) => (
-          
-            <a key={p.id}
+          <a
+            key={p.id}
             href={`/admin/${p.id}`}
             className="flex items-center gap-4 bg-ink-card px-5 py-4 transition hover:bg-white/[0.03]"
           >
@@ -224,13 +224,13 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
             </span>
             {p.has_password && (
               <span className="font-mono text-[11px] uppercase tracking-eyebrow text-ember">
-                locked
+                zárolt
               </span>
             )}
             <ExternalLink className="h-4 w-4 text-mist" />
             <button
               onClick={(e) => onDelete(e, p.id, p.title)}
-              title="Delete project"
+              title="Projekt törlése"
               className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-mist transition hover:bg-ember/10 hover:text-ember"
             >
               <Trash2 className="h-4 w-4" />
@@ -239,7 +239,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
         ))}
       </div>
 
-      {/* Delete confirm dialog */}
+      {/* Törlés megerősítő ablak */}
       {confirmDelete && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-6"
@@ -250,18 +250,18 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
             onClick={(e) => e.stopPropagation()}
           >
             <p className="text-sm leading-relaxed text-bone">
-              Delete the project &ldquo;{confirmDelete.title}&rdquo; along with all of its
-              videos? This cannot be undone.
+              Biztosan törlöd a(z) &ldquo;{confirmDelete.title}&rdquo; projektet az összes
+              videójával és képével együtt? Ez nem vonható vissza.
             </p>
             <div className="mt-5 flex justify-end gap-3">
               <Button variant="ghost" size="sm" onClick={() => setConfirmDelete(null)}>
-                Cancel
+                Mégse
               </Button>
               <button
                 onClick={doDelete}
                 className="flex items-center gap-2 rounded-full border border-ember/40 px-4 py-2 text-sm text-ember transition hover:bg-ember/10"
               >
-                Delete
+                Törlés
               </button>
             </div>
           </div>
