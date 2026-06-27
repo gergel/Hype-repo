@@ -1,29 +1,12 @@
-import type { Metadata } from "next";
-import { Fraunces, Inter, JetBrains_Mono } from "next/font/google";
-import "./globals.css";
-
-const display = Fraunces({
-  subsets: ["latin"],
-  variable: "--font-display",
-  weight: ["400", "500", "600"],
-  style: ["normal", "italic"],
-});
-const sans = Inter({ subsets: ["latin"], variable: "--font-sans" });
-const mono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-mono" });
-
-export const metadata: Metadata = {
-  title: "HYPE Productions — Client Cloud",
-  description: "Private cloud sharing for HYPE Productions clients.",
-};
-
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+/**
+ * Az admin felület MINDIG sötét, függetlenül a portál téma-választásától.
+ * A `dark` osztály ezen a kereten belül kényszeríti a sötét CSS-változókat,
+ * a bg-ink háttér pedig kitölti a teljes magasságot.
+ */
+export default function AdminLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${display.variable} ${sans.variable} ${mono.variable}`}>
-      <body className="grain font-sans antialiased">{children}</body>
-    </html>
+    <div className="dark min-h-screen bg-ink text-bone">
+      {children}
+    </div>
   );
 }
