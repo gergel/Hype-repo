@@ -118,7 +118,7 @@ export function PortalView({
             {!isContentBee && <span className="text-mist">{brandLabel} · </span>}
             {isContentBee ? `${brandLabel} · ` : ""}
             <span className={isContentBee ? "" : "text-mist"}>
-              {project.client_name || "Client"}
+              {project.client_name || "Ügyfél"}
               {project.project_date ? ` · ${project.project_date}` : ""}
             </span>
           </motion.p>
@@ -154,7 +154,7 @@ export function PortalView({
               {project.videos.length > 0 && (
                 <Button variant="ghost" size="lg" asChild>
                   <a href="#films">
-                    {project.videos.length} {project.videos.length === 1 ? "film" : "films"}
+                    {project.videos.length} {project.videos.length === 1 ? "videó" : "videó"}
                     <ArrowDown className="h-4 w-4" />
                   </a>
                 </Button>
@@ -162,7 +162,7 @@ export function PortalView({
               {allImages.length > 0 && (
                 <Button variant="ghost" size="lg" asChild>
                   <a href="#images">
-                    {allImages.length} {allImages.length === 1 ? "photo" : "photos"}
+                    {allImages.length} {allImages.length === 1 ? "fotó" : "fotó"}
                     <ArrowDown className="h-4 w-4" />
                   </a>
                 </Button>
@@ -181,8 +181,8 @@ export function PortalView({
                 ? `Az anyagok még ${remainingDays} napig elérhetők`
                 : "Az anyagok ma járnak le"}
             </span>
-            
-              <a href="#legal"
+            <a
+              href="#legal"
               className="flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-eyebrow text-mist transition hover:text-bone"
             >
               <Info className="h-3.5 w-3.5" />
@@ -215,8 +215,8 @@ export function PortalView({
                 />
                 <p className="mt-6 text-sm text-mist">
                   Kérdésed van? Írj nekünk:{" "}
-                  
-                    <a href={`mailto:${expiredContactEmail}`}
+                  <a
+                    href={`mailto:${expiredContactEmail}`}
                     className="text-bone underline underline-offset-4 transition hover:text-ember"
                   >
                     {expiredContactEmail}
@@ -226,8 +226,8 @@ export function PortalView({
             ) : (
               <p className="mt-4 text-base leading-relaxed text-mist">
                 Ha újra szükséged van az anyagokra, vedd fel velünk a kapcsolatot:{" "}
-                
-                  <a href={`mailto:${expiredContactEmail}`}
+                <a
+                  href={`mailto:${expiredContactEmail}`}
                   className="text-bone underline underline-offset-4 transition hover:text-ember"
                 >
                   {expiredContactEmail}
@@ -238,13 +238,13 @@ export function PortalView({
         </section>
       )}
 
-      {/* ---------- Films ---------- */}
+      {/* ---------- Videók ---------- */}
       {!isExpired && project.videos.length > 0 && (
         <section id="films" className="mx-auto max-w-6xl px-6 py-20 sm:py-28">
           <div className="mb-10 flex items-end justify-between border-b border-ink-line pb-6">
-            <h2 className="font-display text-2xl text-bone sm:text-3xl">The films</h2>
+            <h2 className="font-display text-2xl text-bone sm:text-3xl">Videók</h2>
             <span className="font-mono text-xs uppercase tracking-eyebrow text-mist">
-              Stream · Download
+              Megtekintés · Letöltés
             </span>
           </div>
 
@@ -270,14 +270,14 @@ export function PortalView({
         </section>
       )}
 
-      {/* ---------- Images ---------- */}
+      {/* ---------- Fotók ---------- */}
       {!isExpired && allImages.length > 0 && (
         <section id="images" className="mx-auto max-w-6xl px-6 pb-20 sm:pb-28">
           <div className="mb-10 flex items-end justify-between border-b border-ink-line pb-6">
-            <h2 className="font-display text-2xl text-bone sm:text-3xl">Photos</h2>
+            <h2 className="font-display text-2xl text-bone sm:text-3xl">Fotók</h2>
             <ImagesDownloadButton
               images={allImages}
-              label={`Download all (${allImages.length})`}
+              label={`Összes letöltése (${allImages.length})`}
             />
           </div>
 
@@ -353,7 +353,7 @@ export function PortalView({
 
       <footer className="mx-auto max-w-6xl px-6 pb-16 pt-4">
         <p className="font-mono text-xs uppercase tracking-eyebrow text-mist">
-          © {new Date().getFullYear()} {brandLabel} — Private delivery
+          © {new Date().getFullYear()} {brandLabel} — Privát átadás
         </p>
       </footer>
 
@@ -398,7 +398,7 @@ function FolderSection({
           {name}
         </h3>
         <span className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-eyebrow text-mist">
-          {videos.length} {videos.length === 1 ? "film" : "films"}
+          {videos.length} videó
           <ChevronDown
             className={`h-4 w-4 transition-transform duration-300 ${
               open ? "rotate-180" : ""
@@ -454,7 +454,7 @@ function ImageFolderSection({
           {name}
         </h3>
         <span className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-eyebrow text-mist">
-          {images.length} {images.length === 1 ? "photo" : "photos"}
+          {images.length} fotó
           <ChevronDown
             className={`h-4 w-4 transition-transform duration-300 ${
               open ? "rotate-180" : ""
@@ -586,7 +586,7 @@ function ImageLightbox({
         onTouchEnd={onTouchEnd}
       >
         <button
-          aria-label="Close"
+          aria-label="Bezárás"
           onClick={onClose}
           className="absolute right-5 top-5 z-20 flex h-11 w-11 items-center justify-center rounded-full border border-white/15 text-bone transition hover:bg-white/10"
         >
@@ -595,7 +595,7 @@ function ImageLightbox({
 
         {hasPrev && (
           <button
-            aria-label="Previous"
+            aria-label="Előző"
             onClick={(e) => {
               e.stopPropagation();
               goPrev();
@@ -608,7 +608,7 @@ function ImageLightbox({
 
         {hasNext && (
           <button
-            aria-label="Next"
+            aria-label="Következő"
             onClick={(e) => {
               e.stopPropagation();
               goNext();
@@ -662,7 +662,7 @@ function ImageLightbox({
               ) : (
                 <Download className="h-5 w-5" />
               )}
-              {preparing ? "Preparing…" : "Download"}
+              {preparing ? "Előkészítés…" : "Letöltés"}
             </button>
           </div>
         </motion.div>
@@ -698,19 +698,19 @@ function DownloadAllButton({
       // 2) Képek ZIP-be, haladásjelzéssel
       if (images.length > 0) {
         startedAt.current = Date.now();
-        setStatus(`Képek 0 / ${images.length}`);
+        setStatus(`Fotók 0 / ${images.length}`);
         await downloadImagesAll(
           images.map((i) => ({ id: i.id, title: i.title })),
           (done, total) => {
             if (done === 0) {
-              setStatus(`Képek 0 / ${total}`);
+              setStatus(`Fotók 0 / ${total}`);
               return;
             }
             const elapsed = (Date.now() - startedAt.current) / 1000;
             const remaining = Math.round((elapsed / done) * (total - done));
             const timeStr =
               remaining < 60 ? `~${remaining} mp` : `~${Math.ceil(remaining / 60)} perc`;
-            setStatus(`Képek ${done} / ${total} · ${timeStr}`);
+            setStatus(`Fotók ${done} / ${total} · ${timeStr}`);
           }
         );
       }
@@ -724,7 +724,7 @@ function DownloadAllButton({
   return (
     <Button variant="primary" size="lg" onClick={downloadAll} disabled={!total || busy}>
       {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-      {busy ? status || "Preparing…" : "Download all"}
+      {busy ? status || "Előkészítés…" : "Összes letöltése"}
     </Button>
   );
 }
@@ -757,7 +757,7 @@ function ImagesDownloadButton({
   }
 
   function progressLabel() {
-    if (!progress) return "Preparing…";
+    if (!progress) return "Előkészítés…";
     const { done, total } = progress;
     if (done === 0) return `0 / ${total}`;
     const elapsed = (Date.now() - startedAt.current) / 1000;
@@ -778,7 +778,6 @@ function ImagesDownloadButton({
     </button>
   );
 }
-  
 
 function PaymentPackages({
   slug,
