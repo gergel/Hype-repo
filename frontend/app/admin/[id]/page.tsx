@@ -67,6 +67,7 @@ export default function AdminProjectPage() {
   });
   const [shareUrl, setShareUrl] = useState("");
   const [saved, setSaved] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
   const [uploads, setUploads] = useState<{ name: string; percent: number }[]>([]);
   const [batch, setBatch] = useState<{
     total: number;
@@ -160,9 +161,19 @@ function daysLeft(): number | null {
 
   async function onUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files || []);
-    const targetFolder = currentFolder;
     if (e.target) e.target.value = ""; // reset, hogy ugyanazt újra lehessen választani
+    await handleFiles(files);
+  }
 
+  async function onDropFiles(e: React.DragEvent) {
+    e.preventDefault();
+    setDragOver(false);
+    const files = Array.from(e.dataTransfer.files || []);
+    await handleFiles(files);
+  }
+
+  async function handleFiles(files: File[]) {
+    const targetFolder = currentFolder;
     const imageFiles = files.filter((f) => f.type.startsWith("image/"));
     const otherFiles = files.filter((f) => !f.type.startsWith("image/"));
 
@@ -689,6 +700,36 @@ function makeShare() {
               : "Nyiss meg egy mappát, vagy tölts fel ide videókat és képeket mappa nélkül."}
           </p>
 
+          {/* Drag & drop zóna — Atlas böngészőben is működik, mert nincs fájlválasztó */}
+          <label
+            onDragOver={(e) => {
+              e.preventDefault();
+              setDragOver(true);
+            }}
+            onDragLeave={() => setDragOver(false)}
+            onDrop={onDropFiles}
+            className={`mt-3 flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-2xl border-2 border-dashed px-4 py-6 text-center transition ${
+              dragOver
+                ? "border-ember bg-ember/10"
+                : "border-ink-line bg-ink hover:border-ember/50"
+            }`}
+          >
+            <Upload className="h-5 w-5 text-mist" />
+            <span className="text-sm text-bone">
+              Húzd ide a fájlokat a feltöltéshez
+            </span>
+            <span className="text-[11px] text-mist">
+              vagy kattints a tallózáshoz (videók és képek)
+            </span>
+            <input
+              type="file"
+              accept="video/*,image/*"
+              multiple
+              className="hidden"
+              onChange={onUpload}
+            />
+          </label>
+
           {/* Kijelölés sáv */}
           {selectedCount > 0 && (
             <div className="mt-4 flex items-center justify-between rounded-xl border border-ember/40 bg-ember/10 px-3 py-2.5">
@@ -1135,3 +1176,4 @@ function ConfirmDialog({
     </div>
   );
 }
+
