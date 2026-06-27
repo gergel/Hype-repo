@@ -422,14 +422,14 @@ function makeShare() {
   const selectedCount = selectedVideos.size + selectedImages.size;
 
   return (
-    <main className="mx-auto max-w-5xl px-6 py-12">
+    <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6 sm:py-12">
       <a href="/admin" className="font-mono text-xs uppercase tracking-eyebrow text-mist">
         ← All projects
       </a>
 
       <div className="mt-4 grid gap-8 lg:grid-cols-[1.1fr_1fr]">
         {/* Settings */}
-        <section className="rounded-2xl border border-ink-line bg-ink-card p-6">
+        <section className="rounded-2xl border border-ink-line bg-ink-card p-4 sm:p-6">
           <h2 className="font-display text-xl text-bone">Project details</h2>
           <div className="mt-5 space-y-3">
             {[
@@ -639,8 +639,8 @@ function makeShare() {
         </section>
 
         {/* Files / Folders (Drive-like) */}
-        <section className="rounded-2xl border border-ink-line bg-ink-card p-6">
-          <div className="flex items-center justify-between gap-3">
+        <section className="rounded-2xl border border-ink-line bg-ink-card p-4 sm:p-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex min-w-0 items-center gap-2">
               {currentFolder && (
                 <button
@@ -655,7 +655,7 @@ function makeShare() {
                 {openFolder ? openFolder.name : "Content"}
               </h2>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex shrink-0 items-center gap-2">
               <Button variant="ghost" size="sm" onClick={onCreateFolder}>
                 <FolderPlus className="h-4 w-4" />
                 New folder
