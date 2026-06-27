@@ -74,9 +74,11 @@ export default function AdminProjectPage() {
     done: number;
     startedAt: number;
   } | null>(null);
-  const [videoBatch, setVideoBatch] = useState<{ total: number; done: number } | null>(
-    null
-  );
+  const [videoBatch, setVideoBatch] = useState<{
+    total: number;
+    done: number;
+    startedAt: number;
+  } | null>(null);
   const replaceRef = useRef<HTMLInputElement>(null);
   const replaceId = useRef<string>("");
   const dragId = useRef<string>("");
@@ -243,7 +245,16 @@ function daysLeft(): number | null {
     refresh();
   }
 
-  async function handleFiles(files: File[], targetFolder: string | null) {
+  function isJunkFile(f: File): boolean {
+    const n = f.name;
+    if (n === ".DS_Store" || n === "Thumbs.db" || n === "desktop.ini") return true;
+    if (n.startsWith("._")) return true; // macOS resource fork
+    if (n.startsWith(".")) return true;  // egyéb rejtett fájlok
+    return false;
+  }
+
+  async function handleFiles(rawFiles: File[], targetFolder: string | null) {
+    const files = rawFiles.filter((f) => !isJunkFile(f));
     const imageFiles = files.filter((f) => f.type.startsWith("image/"));
     const otherFiles = files.filter((f) => !f.type.startsWith("image/"));
 
@@ -308,13 +319,14 @@ function daysLeft(): number | null {
     }
 
     // --- Videók: egyesével, összesítő számlálóval + egyenkénti %-kal ---
+    const videoStartedAt = Date.now();
     if (otherFiles.length > 0) {
-      setVideoBatch({ total: otherFiles.length, done: 0 });
+      setVideoBatch({ total: otherFiles.length, done: 0, startedAt: videoStartedAt });
     }
     for (let vi = 0; vi < otherFiles.length; vi++) {
       const file = otherFiles[vi];
       const name = file.name.replace(/\.[^.]+$/, "");
-      setVideoBatch({ total: otherFiles.length, done: vi });
+      setVideoBatch({ total: otherFiles.length, done: vi, startedAt: videoStartedAt });
       setUploads((u) => [...u, { name, percent: 0 }]);
       try {
         const result = await uploadVideo(id, file, name, (percent) => {
@@ -851,10 +863,22 @@ function makeShare() {
 
           {videoBatch && (
             <div className="mt-4 rounded-xl border border-ember/40 bg-ember/10 px-3 py-2.5">
-              <span className="text-sm text-bone">
-                Videó feltöltése: {Math.min(videoBatch.done + 1, videoBatch.total)} /{" "}
-                {videoBatch.total}
-              </span>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-bone">
+                  Videó feltöltése: {Math.min(videoBatch.done + 1, videoBatch.total)} /{" "}
+                  {videoBatch.total}
+                </span>
+                <span className="font-mono text-[11px] text-mist">
+                  {(() => {
+                    if (videoBatch.done === 0) return "Becslés…";
+                    const elapsed = (Date.now() - videoBatch.startedAt) / 1000;
+                    const perItem = elapsed / videoBatch.done;
+                    const remaining = Math.round(perItem * (videoBatch.total - videoBatch.done));
+                    if (remaining < 60) return `~${remaining} mp van hátra`;
+                    return `~${Math.ceil(remaining / 60)} perc van hátra`;
+                  })()}
+                </span>
+              </div>
             </div>
           )}
 
