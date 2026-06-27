@@ -74,6 +74,9 @@ export default function AdminProjectPage() {
     done: number;
     startedAt: number;
   } | null>(null);
+  const [videoBatch, setVideoBatch] = useState<{ total: number; done: number } | null>(
+    null
+  );
   const replaceRef = useRef<HTMLInputElement>(null);
   const replaceId = useRef<string>("");
   const dragId = useRef<string>("");
@@ -165,9 +168,9 @@ function daysLeft(): number | null {
     await handleFiles(files, currentFolder);
   }
 
-  // Mappa ráhúzása: a webkitGetAsEntry-vel bejárjuk a mappa-struktúrát.
-  // Az appban lapos a mappaszerkezet, ezért a beágyazott almappákat
-  // egy összevont névre laposítjuk (pl. "Esküvő / Ceremónia").
+  // Mappa ráhúzása: a webkitGetAsEntry-vel összegyűjtjük a mappa ÖSSZES fájlját
+  // (az almappákból is), és egyetlen, a mappa nevével létrehozott mappába tesszük.
+  // Nincs almappa — minden lapításra kerül egy szintre.
   async function onDropFiles(e: React.DragEvent) {
     e.preventDefault();
     setDragOver(false);
@@ -184,67 +187,57 @@ function daysLeft(): number | null {
       return;
     }
 
-    // Összegyűjtjük: mappanév (vagy null = gyökér) → fájlok
-    const groups = new Map<string | null, File[]>();
-
-    async function walk(entry: FileSystemEntry, folderPath: string | null) {
+    // Egy mappa ÖSSZES fájljának összegyűjtése (rekurzívan, lapítva)
+    async function collectAllFiles(entry: FileSystemEntry): Promise<File[]> {
       if (entry.isFile) {
         const file = await new Promise<File>((resolve, reject) =>
           (entry as FileSystemFileEntry).file(resolve, reject)
         );
-        const arr = groups.get(folderPath) || [];
-        arr.push(file);
-        groups.set(folderPath, arr);
-      } else if (entry.isDirectory) {
-        const dirName = entry.name;
-        const newPath = folderPath ? `${folderPath} / ${dirName}` : dirName;
-        const reader = (entry as FileSystemDirectoryEntry).createReader();
-        // a readEntries-t addig hívjuk, amíg üres tömböt nem ad (lapozás)
-        let batch: FileSystemEntry[] = [];
-        do {
-          batch = await new Promise<FileSystemEntry[]>((resolve, reject) =>
-            reader.readEntries(resolve, reject)
-          );
-          for (const child of batch) {
-            await walk(child, newPath);
-          }
-        } while (batch.length > 0);
+        return [file];
       }
+      const reader = (entry as FileSystemDirectoryEntry).createReader();
+      const all: File[] = [];
+      let batch: FileSystemEntry[] = [];
+      do {
+        batch = await new Promise<FileSystemEntry[]>((resolve, reject) =>
+          reader.readEntries(resolve, reject)
+        );
+        for (const child of batch) {
+          const childFiles = await collectAllFiles(child);
+          all.push(...childFiles);
+        }
+      } while (batch.length > 0);
+      return all;
     }
+
+    // A gyökérbe ejtett külön fájlokat is összegyűjtjük (mappa nélkül)
+    const looseFiles: File[] = [];
 
     for (const entry of entries) {
-      // Gyökérbe ejtett mappa → a mappa neve lesz a célmappa
-      // Gyökérbe ejtett fájl → az aktuális (megnyitott) mappába megy
       if (entry.isDirectory) {
-        await walk(entry, null);
-      } else {
-        const file = await new Promise<File>((resolve, reject) =>
-          (entry as FileSystemFileEntry).file(resolve, reject)
-        );
-        const key = currentFolder ? "__current__" : null;
-        const arr = groups.get(key) || [];
-        arr.push(file);
-        groups.set(key, arr);
-      }
-    }
-
-    // Mappanevek → folder_id (meglévőt használunk vagy újat hozunk létre)
-    for (const [folderName, files] of groups.entries()) {
-      let folderId: string | null;
-      if (folderName === null) {
-        folderId = null; // gyökér
-      } else if (folderName === "__current__") {
-        folderId = currentFolder; // a most megnyitott mappa
-      } else {
+        // Behúzott mappa → létrejön egy mappa a nevével, minden fájlja oda kerül
+        const folderName = entry.name;
         const existing = folders.find((f) => f.name === folderName);
+        let folderId: string;
         if (existing) {
           folderId = existing.id;
         } else {
           const created = await createFolder(id, folderName);
           folderId = created.id;
         }
+        const allFiles = await collectAllFiles(entry);
+        await handleFiles(allFiles, folderId);
+      } else {
+        // Külön fájl (nem mappa) → az aktuális nézet mappájába
+        const file = await new Promise<File>((resolve, reject) =>
+          (entry as FileSystemFileEntry).file(resolve, reject)
+        );
+        looseFiles.push(file);
       }
-      await handleFiles(files, folderId);
+    }
+
+    if (looseFiles.length > 0) {
+      await handleFiles(looseFiles, currentFolder);
     }
 
     refresh();
@@ -314,9 +307,14 @@ function daysLeft(): number | null {
       abortController.current = null;
     }
 
-    // --- Videók: egyesével, a meglévő folyamatjelzővel ---
-    for (const file of otherFiles) {
+    // --- Videók: egyesével, összesítő számlálóval + egyenkénti %-kal ---
+    if (otherFiles.length > 0) {
+      setVideoBatch({ total: otherFiles.length, done: 0 });
+    }
+    for (let vi = 0; vi < otherFiles.length; vi++) {
+      const file = otherFiles[vi];
       const name = file.name.replace(/\.[^.]+$/, "");
+      setVideoBatch({ total: otherFiles.length, done: vi });
       setUploads((u) => [...u, { name, percent: 0 }]);
       try {
         const result = await uploadVideo(id, file, name, (percent) => {
@@ -335,6 +333,7 @@ function daysLeft(): number | null {
       // Videó után frissítünk (kevés van belőle)
       refresh();
     }
+    setVideoBatch(null);
   }
 
   async function onCoverUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -847,6 +846,15 @@ function makeShare() {
               >
                 Feltöltés leállítása
               </button>
+            </div>
+          )}
+
+          {videoBatch && (
+            <div className="mt-4 rounded-xl border border-ember/40 bg-ember/10 px-3 py-2.5">
+              <span className="text-sm text-bone">
+                Videó feltöltése: {Math.min(videoBatch.done + 1, videoBatch.total)} /{" "}
+                {videoBatch.total}
+              </span>
             </div>
           )}
 
