@@ -162,18 +162,95 @@ function daysLeft(): number | null {
   async function onUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files || []);
     if (e.target) e.target.value = ""; // reset, hogy ugyanazt újra lehessen választani
-    await handleFiles(files);
+    await handleFiles(files, currentFolder);
   }
 
+  // Mappa ráhúzása: a webkitGetAsEntry-vel bejárjuk a mappa-struktúrát.
+  // Az appban lapos a mappaszerkezet, ezért a beágyazott almappákat
+  // egy összevont névre laposítjuk (pl. "Esküvő / Ceremónia").
   async function onDropFiles(e: React.DragEvent) {
     e.preventDefault();
     setDragOver(false);
-    const files = Array.from(e.dataTransfer.files || []);
-    await handleFiles(files);
+
+    const items = Array.from(e.dataTransfer.items || []);
+    const entries = items
+      .map((it) => (it.webkitGetAsEntry ? it.webkitGetAsEntry() : null))
+      .filter(Boolean) as FileSystemEntry[];
+
+    // Ha nincs entry-támogatás, sima fájllistaként kezeljük (mappa nélkül)
+    if (entries.length === 0) {
+      const files = Array.from(e.dataTransfer.files || []);
+      await handleFiles(files, currentFolder);
+      return;
+    }
+
+    // Összegyűjtjük: mappanév (vagy null = gyökér) → fájlok
+    const groups = new Map<string | null, File[]>();
+
+    async function walk(entry: FileSystemEntry, folderPath: string | null) {
+      if (entry.isFile) {
+        const file = await new Promise<File>((resolve, reject) =>
+          (entry as FileSystemFileEntry).file(resolve, reject)
+        );
+        const arr = groups.get(folderPath) || [];
+        arr.push(file);
+        groups.set(folderPath, arr);
+      } else if (entry.isDirectory) {
+        const dirName = entry.name;
+        const newPath = folderPath ? `${folderPath} / ${dirName}` : dirName;
+        const reader = (entry as FileSystemDirectoryEntry).createReader();
+        // a readEntries-t addig hívjuk, amíg üres tömböt nem ad (lapozás)
+        let batch: FileSystemEntry[] = [];
+        do {
+          batch = await new Promise<FileSystemEntry[]>((resolve, reject) =>
+            reader.readEntries(resolve, reject)
+          );
+          for (const child of batch) {
+            await walk(child, newPath);
+          }
+        } while (batch.length > 0);
+      }
+    }
+
+    for (const entry of entries) {
+      // Gyökérbe ejtett mappa → a mappa neve lesz a célmappa
+      // Gyökérbe ejtett fájl → az aktuális (megnyitott) mappába megy
+      if (entry.isDirectory) {
+        await walk(entry, null);
+      } else {
+        const file = await new Promise<File>((resolve, reject) =>
+          (entry as FileSystemFileEntry).file(resolve, reject)
+        );
+        const key = currentFolder ? "__current__" : null;
+        const arr = groups.get(key) || [];
+        arr.push(file);
+        groups.set(key, arr);
+      }
+    }
+
+    // Mappanevek → folder_id (meglévőt használunk vagy újat hozunk létre)
+    for (const [folderName, files] of groups.entries()) {
+      let folderId: string | null;
+      if (folderName === null) {
+        folderId = null; // gyökér
+      } else if (folderName === "__current__") {
+        folderId = currentFolder; // a most megnyitott mappa
+      } else {
+        const existing = folders.find((f) => f.name === folderName);
+        if (existing) {
+          folderId = existing.id;
+        } else {
+          const created = await createFolder(id, folderName);
+          folderId = created.id;
+        }
+      }
+      await handleFiles(files, folderId);
+    }
+
+    refresh();
   }
 
-  async function handleFiles(files: File[]) {
-    const targetFolder = currentFolder;
+  async function handleFiles(files: File[], targetFolder: string | null) {
     const imageFiles = files.filter((f) => f.type.startsWith("image/"));
     const otherFiles = files.filter((f) => !f.type.startsWith("image/"));
 
@@ -679,17 +756,6 @@ function makeShare() {
                 <FolderPlus className="h-4 w-4" />
                 Új mappa
               </Button>
-              <label className="inline-flex cursor-pointer items-center gap-2 rounded-full bg-ember px-4 py-2 text-sm font-medium text-white transition hover:bg-ember/90">
-                <Upload className="h-4 w-4" />
-                Feltöltés
-                <input
-                  type="file"
-                  accept="video/*,image/*"
-                  multiple
-                  className="hidden"
-                  onChange={onUpload}
-                />
-              </label>
             </div>
             <input ref={replaceRef} type="file" accept="video/*" hidden onChange={onReplace} />
           </div>
@@ -708,18 +774,18 @@ function makeShare() {
             }}
             onDragLeave={() => setDragOver(false)}
             onDrop={onDropFiles}
-            className={`mt-3 flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-2xl border-2 border-dashed px-4 py-6 text-center transition ${
+            className={`mt-3 flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-2xl border-2 border-dashed px-4 py-8 text-center transition ${
               dragOver
                 ? "border-ember bg-ember/10"
                 : "border-ink-line bg-ink hover:border-ember/50"
             }`}
           >
-            <Upload className="h-5 w-5 text-mist" />
+            <Upload className="h-6 w-6 text-mist" />
             <span className="text-sm text-bone">
-              Húzd ide a fájlokat a feltöltéshez
+              Húzd ide a fájlokat vagy egy egész mappát
             </span>
             <span className="text-[11px] text-mist">
-              vagy kattints a tallózáshoz (videók és képek)
+              Mappa húzásakor automatikusan létrejön a mappa a benne lévő fájlokkal. Vagy kattints a tallózáshoz.
             </span>
             <input
               type="file"
@@ -860,7 +926,7 @@ function makeShare() {
                   onDragStart={() => (dragId.current = v.id)}
                   onDragOver={(e) => e.preventDefault()}
                   onDrop={() => onDrop(v.id)}
-                  className={`flex items-center gap-3 rounded-xl border bg-ink px-3 py-2.5 ${
+                  className={`flex items-center gap-2 rounded-xl border bg-ink px-2.5 py-2.5 sm:gap-3 sm:px-3 ${
                     isSelected ? "border-ember/60" : "border-ink-line"
                   }`}
                 >
@@ -871,8 +937,8 @@ function makeShare() {
                     onClick={(e) => e.stopPropagation()}
                     className="h-4 w-4 shrink-0 cursor-pointer accent-ember"
                   />
-                  <GripVertical className="h-4 w-4 shrink-0 cursor-grab text-mist" />
-                  <div className="h-9 w-16 shrink-0 overflow-hidden rounded bg-ink-soft">
+                  <GripVertical className="hidden h-4 w-4 shrink-0 cursor-grab text-mist sm:block" />
+                  <div className="h-9 w-12 shrink-0 overflow-hidden rounded bg-ink-soft sm:w-16">
                     {v.thumbnail_url && (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={v.thumbnail_url} alt="" className="h-full w-full object-cover" />
@@ -1176,4 +1242,3 @@ function ConfirmDialog({
     </div>
   );
 }
-
