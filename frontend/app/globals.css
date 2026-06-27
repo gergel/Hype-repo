@@ -30,6 +30,8 @@ body {
   background-color: var(--c-ink);
   color: var(--c-bone);
   -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+  max-width: 100%;
 }
 ::selection {
   background: #e8623a;
