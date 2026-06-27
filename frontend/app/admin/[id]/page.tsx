@@ -292,7 +292,7 @@ function makeShare() {
   function onDeleteProject() {
     setConfirmDialog({
       message:
-        "Are you sure you want to delete this project along with all of its videos and images? This cannot be undone.",
+        "Biztosan törlöd ezt a projektet az összes videójával és képével együtt? Ez nem vonható vissza.",
       onConfirm: async () => {
         await deleteProject(id);
         router.push("/admin");
@@ -302,7 +302,7 @@ function makeShare() {
 
   function onCreateFolder() {
     setPrompt({
-      title: "New folder name",
+      title: "Új mappa neve",
       value: "",
       onConfirm: async (name) => {
         if (!name.trim()) return;
@@ -315,7 +315,7 @@ function makeShare() {
   function onRenameFolder(folderId: string) {
     const current = folders.find((f) => f.id === folderId);
     setPrompt({
-      title: "New folder name",
+      title: "Új mappa neve",
       value: current?.name || "",
       onConfirm: async (name) => {
         if (!name.trim()) return;
@@ -327,7 +327,7 @@ function makeShare() {
 
   function onDeleteFolder(folderId: string) {
     setConfirmDialog({
-      message: "Delete this folder and all videos and images inside it? This cannot be undone.",
+      message: "Törlöd ezt a mappát a benne lévő összes videóval és képpel együtt? Ez nem vonható vissza.",
       onConfirm: async () => {
         await deleteFolder(folderId);
         if (currentFolder === folderId) setCurrentFolder(null);
@@ -338,7 +338,7 @@ function makeShare() {
 
   function onDeleteVideo(videoId: string) {
     setConfirmDialog({
-      message: "Delete this video? This cannot be undone.",
+      message: "Törlöd ezt a videót? Ez nem vonható vissza.",
       onConfirm: async () => {
         await deleteVideo(videoId);
         refresh();
@@ -348,7 +348,7 @@ function makeShare() {
 
   function onDeleteImage(imageId: string) {
     setConfirmDialog({
-      message: "Delete this image? This cannot be undone.",
+      message: "Törlöd ezt a képet? Ez nem vonható vissza.",
       onConfirm: async () => {
         await deleteImage(imageId);
         refresh();
@@ -395,7 +395,7 @@ function makeShare() {
     const total = vIds.length + iIds.length;
     if (total === 0) return;
     setConfirmDialog({
-      message: `Delete ${total} selected ${total === 1 ? "item" : "items"}? This cannot be undone.`,
+      message: `Törlöd a kijelölt ${total} elemet? Ez nem vonható vissza.`,
       onConfirm: async () => {
         for (const vid of vIds) {
           await deleteVideo(vid).catch(() => {});
@@ -424,19 +424,19 @@ function makeShare() {
   return (
     <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6 sm:py-12">
       <a href="/admin" className="font-mono text-xs uppercase tracking-eyebrow text-mist">
-        ← All projects
+        ← Összes projekt
       </a>
 
       <div className="mt-4 grid gap-8 lg:grid-cols-[1.1fr_1fr]">
-        {/* Settings */}
+        {/* Beállítások */}
         <section className="rounded-2xl border border-ink-line bg-ink-card p-4 sm:p-6">
-          <h2 className="font-display text-xl text-bone">Project details</h2>
+          <h2 className="font-display text-xl text-bone">Projekt adatai</h2>
           <div className="mt-5 space-y-3">
             {[
-              ["title", "Project title"],
-              ["client_name", "Client name"],
-              ["project_date", "Date (e.g. 2026-06-17)"],
-              ["slug", "Portal slug"],
+              ["title", "Projekt címe"],
+              ["client_name", "Ügyfél neve"],
+              ["project_date", "Dátum (pl. 2026-06-17)"],
+              ["slug", "Portál azonosító (slug)"],
             ].map(([key, label]) => (
               <Field
                 key={key}
@@ -449,7 +449,7 @@ function makeShare() {
             <div>
               <div className="flex items-center justify-between">
                 <label className="font-mono text-[11px] uppercase tracking-eyebrow text-mist">
-                  Cover image
+                  Borítókép
                 </label>
                 <div className="flex items-center gap-3">
                   <button
@@ -457,7 +457,7 @@ function makeShare() {
                     onClick={() => coverRef.current?.click()}
                     className="text-xs text-ember hover:underline"
                   >
-                    Upload
+                    Feltöltés
                   </button>
                   {form.cover_image_url && (
                     <button
@@ -465,7 +465,7 @@ function makeShare() {
                       onClick={onDeleteCover}
                       className="text-xs text-mist hover:text-ember hover:underline"
                     >
-                      Remove
+                      Eltávolítás
                     </button>
                   )}
                 </div>
@@ -474,7 +474,7 @@ function makeShare() {
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={form.cover_image_url}
-                  alt="Cover"
+                  alt="Borító"
                   className="mt-2 h-32 w-full rounded-2xl border border-ink-line object-cover"
                 />
               )}
@@ -489,7 +489,7 @@ function makeShare() {
 
             <div>
               <label className="font-mono text-[11px] uppercase tracking-eyebrow text-mist">
-                Description
+                Leírás
               </label>
               <textarea
                 value={form.description}
@@ -501,7 +501,7 @@ function makeShare() {
 
             <div>
               <label className="font-mono text-[11px] uppercase tracking-eyebrow text-mist">
-                Brand
+                Márka
               </label>
               <div className="mt-1.5 flex gap-2">
                 <button
@@ -530,7 +530,7 @@ function makeShare() {
             </div>
             <div>
               <label className="font-mono text-[11px] uppercase tracking-eyebrow text-mist">
-                Available until
+                Elérhető eddig
               </label>
               <input
                 type="date"
@@ -543,16 +543,16 @@ function makeShare() {
                   {(() => {
                     const d = daysLeft();
                     if (d === null) return null;
-                    if (d < 0) return "Expired — portal is hidden from clients.";
-                    if (d === 0) return "Expires today.";
-                    return `${d} ${d === 1 ? "day" : "days"} left until the portal hides its content.`;
+                    if (d < 0) return "Lejárt — a portál rejtve van az ügyfelek elől.";
+                    if (d === 0) return "Ma jár le.";
+                    return `${d} nap van hátra, amíg a portál elrejti a tartalmat.`;
                   })()}
                 </p>
               )}
             </div>
             <div>
               <label className="font-mono text-[11px] uppercase tracking-eyebrow text-mist">
-                On expiry
+                Lejáratkor
               </label>
               <div className="mt-1.5 flex gap-2">
                 <button
@@ -564,7 +564,7 @@ function makeShare() {
                       : "border-ink-line text-mist hover:text-bone"
                   }`}
                 >
-                  Contact us
+                  Kapcsolatfelvétel
                 </button>
                 <button
                   type="button"
@@ -575,19 +575,19 @@ function makeShare() {
                       : "border-ink-line text-mist hover:text-bone"
                   }`}
                 >
-                  Paid extension
+                  Fizetős hosszabbítás
                 </button>
               </div>
               <p className="mt-1.5 text-xs text-mist">
                 {form.payment_mode === "paid"
-                  ? "Clients can pay to extend access after expiry."
-                  : "Clients see a contact message after expiry."}
+                  ? "Az ügyfelek fizetéssel meghosszabbíthatják a hozzáférést lejárat után."
+                  : "Az ügyfelek kapcsolatfelvételi üzenetet látnak lejárat után."}
               </p>
             </div>
             <div>
               <div className="flex items-center justify-between">
                 <label className="font-mono text-[11px] uppercase tracking-eyebrow text-mist">
-                  Password {data.has_password ? "(set)" : "(none)"}
+                  Jelszó {data.has_password ? "(beállítva)" : "(nincs)"}
                 </label>
                 {data.has_password && (
                   <button
@@ -595,14 +595,14 @@ function makeShare() {
                     onClick={clearPassword}
                     className="text-xs text-ember hover:underline"
                   >
-                    Reset password
+                    Jelszó törlése
                   </button>
                 )}
               </div>
               <input
                 type="password"
                 value={form.password}
-                placeholder={data.has_password ? "New password (leave empty to keep)" : "Set password"}
+                placeholder={data.has_password ? "Új jelszó (üresen hagyva megmarad)" : "Jelszó beállítása"}
                 onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
                 className="mt-1.5 w-full rounded-full border border-ink-line bg-ink px-4 py-2.5 text-bone outline-none focus:border-ember/60"
               />
@@ -612,57 +612,57 @@ function makeShare() {
           <div className="mt-5 flex flex-wrap items-center gap-3">
             <Button variant="primary" onClick={save}>
               <Save className="h-4 w-4" />
-              {saved ? "Saved" : "Save changes"}
+              {saved ? "Mentve" : "Mentés"}
             </Button>
             <Button variant="ghost" asChild>
               <a href={portalUrl} target="_blank">
-                View portal
+                Portál megtekintése
               </a>
             </Button>
             <Button variant="ghost" onClick={makeShare}>
               <Link2 className="h-4 w-4" />
-              Share link
+              Megosztó link
             </Button>
             <button
               onClick={onDeleteProject}
               className="ml-auto flex items-center gap-2 rounded-full border border-ember/40 px-4 py-2 text-sm text-ember transition hover:bg-ember/10"
             >
               <Trash2 className="h-4 w-4" />
-              Delete project
+              Projekt törlése
             </button>
           </div>
           {shareUrl && (
             <p className="mt-3 break-all rounded-xl border border-ink-line bg-ink px-3 py-2 font-mono text-xs text-mist">
-              Copied: {shareUrl}
+              Másolva: {shareUrl}
             </p>
           )}
         </section>
 
-        {/* Files / Folders (Drive-like) */}
+        {/* Fájlok / Mappák (Drive-szerű) */}
         <section className="rounded-2xl border border-ink-line bg-ink-card p-4 sm:p-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex min-w-0 items-center gap-2">
               {currentFolder && (
                 <button
                   onClick={() => setCurrentFolder(null)}
-                  title="Back"
+                  title="Vissza"
                   className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-mist transition hover:bg-white/[0.05] hover:text-bone"
                 >
                   <ArrowLeft className="h-4 w-4" />
                 </button>
               )}
               <h2 className="truncate font-display text-xl text-bone">
-                {openFolder ? openFolder.name : "Content"}
+                {openFolder ? openFolder.name : "Tartalom"}
               </h2>
             </div>
             <div className="flex shrink-0 items-center gap-2">
               <Button variant="ghost" size="sm" onClick={onCreateFolder}>
                 <FolderPlus className="h-4 w-4" />
-                New folder
+                Új mappa
               </Button>
               <Button variant="ember" size="sm" onClick={() => fileRef.current?.click()}>
                 <Upload className="h-4 w-4" />
-                Upload
+                Feltöltés
               </Button>
             </div>
             <input
@@ -678,27 +678,27 @@ function makeShare() {
 
           <p className="mt-2 text-xs text-mist">
             {currentFolder
-              ? "Uploaded videos and images will go into this folder."
-              : "Open a folder, or upload videos and images here without a folder."}
+              ? "A feltöltött videók és képek ebbe a mappába kerülnek."
+              : "Nyiss meg egy mappát, vagy tölts fel ide videókat és képeket mappa nélkül."}
           </p>
 
-          {/* Selection bar */}
+          {/* Kijelölés sáv */}
           {selectedCount > 0 && (
             <div className="mt-4 flex items-center justify-between rounded-xl border border-ember/40 bg-ember/10 px-3 py-2.5">
-              <span className="text-sm text-bone">{selectedCount} selected</span>
+              <span className="text-sm text-bone">{selectedCount} kijelölve</span>
               <div className="flex items-center gap-3">
                 <button
                   onClick={clearSelection}
                   className="text-xs text-mist transition hover:text-bone"
                 >
-                  Clear
+                  Mégse
                 </button>
                 <button
                   onClick={onDeleteSelected}
                   className="flex items-center gap-2 rounded-full border border-ember/50 px-3 py-1.5 text-xs text-ember transition hover:bg-ember/20"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
-                  Delete selected
+                  Kijelöltek törlése
                 </button>
               </div>
             </div>
@@ -746,7 +746,7 @@ function makeShare() {
                   <div className="mb-1.5 flex items-center justify-between">
                     <span className="truncate text-sm text-bone">{u.name}</span>
                     <span className="font-mono text-[11px] text-mist">
-                      {u.percent < 100 ? `${u.percent}%` : "Processing…"}
+                      {u.percent < 100 ? `${u.percent}%` : "Feldolgozás…"}
                     </span>
                   </div>
                   <div className="h-1.5 w-full overflow-hidden rounded-full bg-ink-line">
@@ -760,7 +760,7 @@ function makeShare() {
             </div>
           )}
 
-          {/* Folders (root only) */}
+          {/* Mappák (csak gyökérben) */}
           {!currentFolder && folders.length > 0 && (
             <ul className="mt-4 space-y-2">
               {folders.map((f) => {
@@ -778,18 +778,18 @@ function makeShare() {
                       <FolderIcon className="h-5 w-5 shrink-0 text-ember" />
                       <span className="truncate text-sm text-bone">{f.name}</span>
                       <span className="ml-auto shrink-0 font-mono text-[11px] text-mist">
-                        {vCount + iCount} {vCount + iCount === 1 ? "item" : "items"}
+                        {vCount + iCount} elem
                       </span>
                     </button>
                     <button
-                      title="Rename"
+                      title="Átnevezés"
                       onClick={() => onRenameFolder(f.id)}
                       className="text-mist transition hover:text-bone"
                     >
                       <Pencil className="h-4 w-4" />
                     </button>
                     <button
-                      title="Delete folder"
+                      title="Mappa törlése"
                       onClick={() => onDeleteFolder(f.id)}
                       className="text-mist transition hover:text-ember"
                     >
@@ -801,7 +801,7 @@ function makeShare() {
             </ul>
           )}
 
-          {/* Videos in current view */}
+          {/* Videók az aktuális nézetben */}
           <ul className="mt-2 space-y-2">
             {visibleVideos.map((v) => {
               const isSelected = selectedVideos.has(v.id);
@@ -836,13 +836,13 @@ function makeShare() {
                       {v.status === "ready"
                         ? `${v.resolution_label} · ${formatDuration(v.duration_seconds)} · ${formatBytes(v.size_bytes)}`
                         : v.status === "processing"
-                        ? "Processing…"
-                        : "Failed"}
+                        ? "Feldolgozás…"
+                        : "Sikertelen"}
                     </p>
                   </div>
                   {currentFolder && (
                     <button
-                      title="Remove from folder"
+                      title="Kivétel a mappából"
                       onClick={() => onRemoveFromFolder(v.id)}
                       className="text-mist transition hover:text-bone"
                     >
@@ -850,7 +850,7 @@ function makeShare() {
                     </button>
                   )}
                   <button
-                    title="Replace"
+                    title="Csere"
                     onClick={() => {
                       replaceId.current = v.id;
                       replaceRef.current?.click();
@@ -860,7 +860,7 @@ function makeShare() {
                     <Replace className="h-4 w-4" />
                   </button>
                   <button
-                    title="Delete"
+                    title="Törlés"
                     onClick={() => onDeleteVideo(v.id)}
                     className="text-mist transition hover:text-ember"
                   >
@@ -872,17 +872,17 @@ function makeShare() {
             {visibleVideos.length === 0 && (
               <li className="py-8 text-center text-sm text-mist">
                 {currentFolder
-                  ? "No videos in this folder."
-                  : "No videos without a folder."}
+                  ? "Nincs videó ebben a mappában."
+                  : "Nincs mappán kívüli videó."}
               </li>
             )}
           </ul>
 
-          {/* Images in current view */}
+          {/* Képek az aktuális nézetben */}
           {visibleImages.length > 0 && (
             <div className="mt-6">
               <h3 className="mb-3 font-mono text-[11px] uppercase tracking-eyebrow text-mist">
-                Images ({visibleImages.length})
+                Képek ({visibleImages.length})
               </h3>
               <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
                 {visibleImages.map((img) => (
@@ -992,7 +992,7 @@ function LazyImageCell({
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center gap-2 bg-black/50 opacity-0 transition group-hover:opacity-100">
             {inFolder && (
               <button
-                title="Remove from folder"
+                title="Kivétel a mappából"
                 onClick={onRemoveFromFolder}
                 className="pointer-events-auto flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-bone transition hover:text-white"
               >
@@ -1000,7 +1000,7 @@ function LazyImageCell({
               </button>
             )}
             <button
-              title="Delete"
+              title="Törlés"
               onClick={onDelete}
               className="pointer-events-auto flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-bone transition hover:text-ember"
             >
@@ -1076,7 +1076,7 @@ function PromptDialog({
         />
         <div className="mt-5 flex justify-end gap-3">
           <Button variant="ghost" size="sm" onClick={onCancel}>
-            Cancel
+            Mégse
           </Button>
           <Button variant="primary" size="sm" onClick={() => onConfirm(value)}>
             OK
@@ -1108,13 +1108,13 @@ function ConfirmDialog({
         <p className="text-sm leading-relaxed text-bone">{message}</p>
         <div className="mt-5 flex justify-end gap-3">
           <Button variant="ghost" size="sm" onClick={onCancel}>
-            Cancel
+            Mégse
           </Button>
           <button
             onClick={onConfirm}
             className="flex items-center gap-2 rounded-full border border-ember/40 px-4 py-2 text-sm text-ember transition hover:bg-ember/10"
           >
-            Delete
+            Törlés
           </button>
         </div>
       </div>
