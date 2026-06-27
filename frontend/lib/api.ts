@@ -271,13 +271,7 @@ export async function setImageFolder(imageId: string, folderId: string | null) {
   });
 }
 
-export async function renameImage(imageId: string, title: string) {
-  return req<Image>(`/admin/images/${imageId}`, {
-    method: "PATCH",
-    headers: authHeaders(),
-    body: JSON.stringify({ title }),
-  });
-}
+
 
 export async function renameVideo(videoId: string, title: string) {
   return req<Video>(`/admin/videos/${videoId}`, {
