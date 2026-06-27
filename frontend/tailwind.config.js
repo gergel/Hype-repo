@@ -6,13 +6,13 @@ module.exports = {
     extend: {
       colors: {
         ink: {
-          DEFAULT: "#070707",
-          soft: "#0d0d0f",
-          card: "#121214",
-          line: "#222226",
+          DEFAULT: "var(--c-ink)",
+          soft: "var(--c-ink-soft)",
+          card: "var(--c-ink-card)",
+          line: "var(--c-ink-line)",
         },
-        bone: "#f4f1ea",
-        mist: "#a8a8a6",
+        bone: "var(--c-bone)",
+        mist: "var(--c-mist)",
         ember: "#e8623a", // single warm accent, used with restraint
       },
       fontFamily: {
