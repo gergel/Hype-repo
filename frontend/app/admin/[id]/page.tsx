@@ -452,13 +452,14 @@ function makeShare() {
                   Borítókép
                 </label>
                 <div className="flex items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() => coverRef.current?.click()}
-                    className="text-xs text-ember hover:underline"
+                  <Button
+                    variant="ember"
+                    size="sm"
+                    onClick={() => setTimeout(() => fileRef.current?.click(), 0)}
                   >
+                    <Upload className="h-4 w-4" />
                     Feltöltés
-                  </button>
+                  </Button>
                   {form.cover_image_url && (
                     <button
                       type="button"
