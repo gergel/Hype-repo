@@ -540,21 +540,28 @@ def delete_image(
     db.commit()
     return {"ok": True}
 
-class ImageFolderIn(BaseModel):
+class ImageUpdateIn(BaseModel):
     folder_id: str | None = None
+    title: str | None = None
+    set_folder: bool = False
 
 
 @router.patch("/images/{image_id}", response_model=ImageOut)
-def update_image_folder(
+def update_image(
     image_id: str,
-    payload: ImageFolderIn,
+    payload: ImageUpdateIn,
     db: Session = Depends(get_db),
     _: str = Depends(require_admin),
 ):
     image = db.query(Image).get(image_id)
     if not image:
         raise HTTPException(status_code=404, detail="Not found")
-    image.folder_id = payload.folder_id
+    # A mappát csak akkor állítjuk, ha kifejezetten kérték (set_folder=True),
+    # hogy az átnevezés ne nullázza a mappát.
+    if payload.set_folder:
+        image.folder_id = payload.folder_id
+    if payload.title is not None:
+        image.title = payload.title
     db.commit()
     db.refresh(image)
     return ImageOut.model_validate(image)
