@@ -11,6 +11,7 @@ import {
   uploadImage,
   deleteImage,
   setImageFolder,
+  renameVideo,
   Folder,
   Image as ImageType,
 } from "@/lib/api";
@@ -66,7 +67,6 @@ export default function AdminProjectPage() {
   });
   const [shareUrl, setShareUrl] = useState("");
   const [saved, setSaved] = useState(false);
-  const fileRef = useRef<HTMLInputElement>(null);
   const [uploads, setUploads] = useState<{ name: string; percent: number }[]>([]);
   const [batch, setBatch] = useState<{
     total: number;
@@ -75,7 +75,6 @@ export default function AdminProjectPage() {
   } | null>(null);
   const replaceRef = useRef<HTMLInputElement>(null);
   const replaceId = useRef<string>("");
-  const coverRef = useRef<HTMLInputElement>(null);
   const dragId = useRef<string>("");
   const cancelUpload = useRef(false);
   const abortController = useRef<AbortController | null>(null);
@@ -325,6 +324,19 @@ function makeShare() {
     });
   }
 
+  function onRenameVideo(videoId: string) {
+    const current = videos.find((v) => v.id === videoId);
+    setPrompt({
+      title: "Videó átnevezése",
+      value: current?.title || "",
+      onConfirm: async (name) => {
+        if (!name.trim()) return;
+        await renameVideo(videoId, name.trim());
+        refresh();
+      },
+    });
+  }
+
   function onDeleteFolder(folderId: string) {
     setConfirmDialog({
       message: "Törlöd ezt a mappát a benne lévő összes videóval és képpel együtt? Ez nem vonható vissza.",
@@ -452,14 +464,16 @@ function makeShare() {
                   Borítókép
                 </label>
                 <div className="flex items-center gap-3">
-                  <Button
-                    variant="ember"
-                    size="sm"
-                    onClick={() => setTimeout(() => fileRef.current?.click(), 0)}
-                  >
-                    <Upload className="h-4 w-4" />
+                  <label className="inline-flex cursor-pointer items-center gap-2 rounded-full bg-ember px-3 py-1.5 text-xs font-medium text-white transition hover:bg-ember/90">
+                    <Upload className="h-3.5 w-3.5" />
                     Feltöltés
-                  </Button>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={onCoverUpload}
+                    />
+                  </label>
                   {form.cover_image_url && (
                     <button
                       type="button"
@@ -479,13 +493,6 @@ function makeShare() {
                   className="mt-2 h-32 w-full rounded-2xl border border-ink-line object-cover"
                 />
               )}
-              <input
-                ref={coverRef}
-                type="file"
-                accept="image/*"
-                hidden
-                onChange={onCoverUpload}
-              />
             </div>
 
             <div>
@@ -661,19 +668,18 @@ function makeShare() {
                 <FolderPlus className="h-4 w-4" />
                 Új mappa
               </Button>
-              <Button variant="ember" size="sm" onClick={() => fileRef.current?.click()}>
+              <label className="inline-flex cursor-pointer items-center gap-2 rounded-full bg-ember px-4 py-2 text-sm font-medium text-white transition hover:bg-ember/90">
                 <Upload className="h-4 w-4" />
                 Feltöltés
-              </Button>
+                <input
+                  type="file"
+                  accept="video/*,image/*"
+                  multiple
+                  className="hidden"
+                  onChange={onUpload}
+                />
+              </label>
             </div>
-            <input
-              ref={fileRef}
-              type="file"
-              accept="video/*,image/*"
-              multiple
-              hidden
-              onChange={onUpload}
-            />
             <input ref={replaceRef} type="file" accept="video/*" hidden onChange={onReplace} />
           </div>
 
@@ -850,6 +856,13 @@ function makeShare() {
                       <ArrowLeft className="h-4 w-4" />
                     </button>
                   )}
+                  <button
+                    title="Átnevezés"
+                    onClick={() => onRenameVideo(v.id)}
+                    className="text-mist transition hover:text-bone"
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </button>
                   <button
                     title="Csere"
                     onClick={() => {
