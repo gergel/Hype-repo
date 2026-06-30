@@ -267,7 +267,17 @@ export async function setImageFolder(imageId: string, folderId: string | null) {
   return req(`/admin/images/${imageId}`, {
     method: "PATCH",
     headers: authHeaders(),
-    body: JSON.stringify({ folder_id: folderId }),
+    body: JSON.stringify({ folder_id: folderId, set_folder: true }),
+  });
+}
+
+
+
+export async function renameVideo(videoId: string, title: string) {
+  return req<Video>(`/admin/videos/${videoId}`, {
+    method: "PATCH",
+    headers: authHeaders(),
+    body: JSON.stringify({ title }),
   });
 }
 

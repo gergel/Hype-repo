@@ -2,22 +2,41 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ---------- TÃ©ma vÃ¡ltozÃ³k ---------- */
+/* VilÃ¡gos tÃ©ma (alapÃ©rtelmezett) */
 :root {
+  color-scheme: light;
+  --c-ink: #f3f0e9;        /* fÅ‘ hÃ¡ttÃ©r â€“ meleg tÃ¶rtfehÃ©r */
+  --c-ink-soft: #e9e5dc;   /* lÃ¡gyabb hÃ¡ttÃ©r (pl. Ã¼res kÃ©pkeret) */
+  --c-ink-card: #fbf9f5;   /* kÃ¡rtyÃ¡k hÃ¡ttere â€“ vilÃ¡gosabb */
+  --c-ink-line: #d9d4c8;   /* vonalak, keretek */
+  --c-bone: #1c1b18;       /* fÅ‘ szÃ¶veg â€“ sÃ¶tÃ©t */
+  --c-mist: #6b6862;       /* mÃ¡sodlagos szÃ¶veg â€“ tompÃ­tott */
+}
+
+/* SÃ¶tÃ©t tÃ©ma â€“ akkor aktÃ­v, ha a .dark osztÃ¡ly jelen van egy szÃ¼lÅ‘n */
+.dark {
   color-scheme: dark;
+  --c-ink: #070707;
+  --c-ink-soft: #0d0d0f;
+  --c-ink-card: #121214;
+  --c-ink-line: #222226;
+  --c-bone: #f4f1ea;
+  --c-mist: #a8a8a6;
 }
 
 html,
 body {
-  background-color: #070707;
-  color: #f4f1ea;
+  background-color: var(--c-ink);
+  color: var(--c-bone);
   -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+  max-width: 100%;
 }
-
 ::selection {
   background: #e8623a;
-  color: #070707;
+  color: #f4f1ea;
 }
-
 /* Subtle film grain over the whole canvas */
 .grain::after {
   content: "";
@@ -28,7 +47,6 @@ body {
   opacity: 0.035;
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
-
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

@@ -11,6 +11,7 @@ import {
   uploadImage,
   deleteImage,
   setImageFolder,
+  renameVideo,
   Folder,
   Image as ImageType,
 } from "@/lib/api";
@@ -66,16 +67,20 @@ export default function AdminProjectPage() {
   });
   const [shareUrl, setShareUrl] = useState("");
   const [saved, setSaved] = useState(false);
-  const fileRef = useRef<HTMLInputElement>(null);
+  const [dragOver, setDragOver] = useState(false);
   const [uploads, setUploads] = useState<{ name: string; percent: number }[]>([]);
   const [batch, setBatch] = useState<{
     total: number;
     done: number;
     startedAt: number;
   } | null>(null);
+  const [videoBatch, setVideoBatch] = useState<{
+    total: number;
+    done: number;
+    startedAt: number;
+  } | null>(null);
   const replaceRef = useRef<HTMLInputElement>(null);
   const replaceId = useRef<string>("");
-  const coverRef = useRef<HTMLInputElement>(null);
   const dragId = useRef<string>("");
   const cancelUpload = useRef(false);
   const abortController = useRef<AbortController | null>(null);
@@ -161,9 +166,95 @@ function daysLeft(): number | null {
 
   async function onUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files || []);
-    const targetFolder = currentFolder;
     if (e.target) e.target.value = ""; // reset, hogy ugyanazt újra lehessen választani
+    await handleFiles(files, currentFolder);
+  }
 
+  // Mappa ráhúzása: a webkitGetAsEntry-vel összegyűjtjük a mappa ÖSSZES fájlját
+  // (az almappákból is), és egyetlen, a mappa nevével létrehozott mappába tesszük.
+  // Nincs almappa — minden lapításra kerül egy szintre.
+  async function onDropFiles(e: React.DragEvent) {
+    e.preventDefault();
+    setDragOver(false);
+
+    const items = Array.from(e.dataTransfer.items || []);
+    const entries = items
+      .map((it) => (it.webkitGetAsEntry ? it.webkitGetAsEntry() : null))
+      .filter(Boolean) as FileSystemEntry[];
+
+    // Ha nincs entry-támogatás, sima fájllistaként kezeljük (mappa nélkül)
+    if (entries.length === 0) {
+      const files = Array.from(e.dataTransfer.files || []);
+      await handleFiles(files, currentFolder);
+      return;
+    }
+
+    // Egy mappa ÖSSZES fájljának összegyűjtése (rekurzívan, lapítva)
+    async function collectAllFiles(entry: FileSystemEntry): Promise<File[]> {
+      if (entry.isFile) {
+        const file = await new Promise<File>((resolve, reject) =>
+          (entry as FileSystemFileEntry).file(resolve, reject)
+        );
+        return [file];
+      }
+      const reader = (entry as FileSystemDirectoryEntry).createReader();
+      const all: File[] = [];
+      let batch: FileSystemEntry[] = [];
+      do {
+        batch = await new Promise<FileSystemEntry[]>((resolve, reject) =>
+          reader.readEntries(resolve, reject)
+        );
+        for (const child of batch) {
+          const childFiles = await collectAllFiles(child);
+          all.push(...childFiles);
+        }
+      } while (batch.length > 0);
+      return all;
+    }
+
+    // A gyökérbe ejtett külön fájlokat is összegyűjtjük (mappa nélkül)
+    const looseFiles: File[] = [];
+
+    for (const entry of entries) {
+      if (entry.isDirectory) {
+        // Behúzott mappa → létrejön egy mappa a nevével, minden fájlja oda kerül
+        const folderName = entry.name;
+        const existing = folders.find((f) => f.name === folderName);
+        let folderId: string;
+        if (existing) {
+          folderId = existing.id;
+        } else {
+          const created = await createFolder(id, folderName);
+          folderId = created.id;
+        }
+        const allFiles = await collectAllFiles(entry);
+        await handleFiles(allFiles, folderId);
+      } else {
+        // Külön fájl (nem mappa) → az aktuális nézet mappájába
+        const file = await new Promise<File>((resolve, reject) =>
+          (entry as FileSystemFileEntry).file(resolve, reject)
+        );
+        looseFiles.push(file);
+      }
+    }
+
+    if (looseFiles.length > 0) {
+      await handleFiles(looseFiles, currentFolder);
+    }
+
+    refresh();
+  }
+
+  function isJunkFile(f: File): boolean {
+    const n = f.name;
+    if (n === ".DS_Store" || n === "Thumbs.db" || n === "desktop.ini") return true;
+    if (n.startsWith("._")) return true; // macOS resource fork
+    if (n.startsWith(".")) return true;  // egyéb rejtett fájlok
+    return false;
+  }
+
+  async function handleFiles(rawFiles: File[], targetFolder: string | null) {
+    const files = rawFiles.filter((f) => !isJunkFile(f));
     const imageFiles = files.filter((f) => f.type.startsWith("image/"));
     const otherFiles = files.filter((f) => !f.type.startsWith("image/"));
 
@@ -227,9 +318,15 @@ function daysLeft(): number | null {
       abortController.current = null;
     }
 
-    // --- Videók: egyesével, a meglévő folyamatjelzővel ---
-    for (const file of otherFiles) {
+    // --- Videók: egyesével, összesítő számlálóval + egyenkénti %-kal ---
+    const videoStartedAt = Date.now();
+    if (otherFiles.length > 0) {
+      setVideoBatch({ total: otherFiles.length, done: 0, startedAt: videoStartedAt });
+    }
+    for (let vi = 0; vi < otherFiles.length; vi++) {
+      const file = otherFiles[vi];
       const name = file.name.replace(/\.[^.]+$/, "");
+      setVideoBatch({ total: otherFiles.length, done: vi, startedAt: videoStartedAt });
       setUploads((u) => [...u, { name, percent: 0 }]);
       try {
         const result = await uploadVideo(id, file, name, (percent) => {
@@ -248,6 +345,7 @@ function daysLeft(): number | null {
       // Videó után frissítünk (kevés van belőle)
       refresh();
     }
+    setVideoBatch(null);
   }
 
   async function onCoverUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -292,7 +390,7 @@ function makeShare() {
   function onDeleteProject() {
     setConfirmDialog({
       message:
-        "Are you sure you want to delete this project along with all of its videos and images? This cannot be undone.",
+        "Biztosan törlöd ezt a projektet az összes videójával és képével együtt? Ez nem vonható vissza.",
       onConfirm: async () => {
         await deleteProject(id);
         router.push("/admin");
@@ -302,7 +400,7 @@ function makeShare() {
 
   function onCreateFolder() {
     setPrompt({
-      title: "New folder name",
+      title: "Új mappa neve",
       value: "",
       onConfirm: async (name) => {
         if (!name.trim()) return;
@@ -315,7 +413,7 @@ function makeShare() {
   function onRenameFolder(folderId: string) {
     const current = folders.find((f) => f.id === folderId);
     setPrompt({
-      title: "New folder name",
+      title: "Új mappa neve",
       value: current?.name || "",
       onConfirm: async (name) => {
         if (!name.trim()) return;
@@ -325,9 +423,22 @@ function makeShare() {
     });
   }
 
+  function onRenameVideo(videoId: string) {
+    const current = videos.find((v) => v.id === videoId);
+    setPrompt({
+      title: "Videó átnevezése",
+      value: current?.title || "",
+      onConfirm: async (name) => {
+        if (!name.trim()) return;
+        await renameVideo(videoId, name.trim());
+        refresh();
+      },
+    });
+  }
+
   function onDeleteFolder(folderId: string) {
     setConfirmDialog({
-      message: "Delete this folder and all videos and images inside it? This cannot be undone.",
+      message: "Törlöd ezt a mappát a benne lévő összes videóval és képpel együtt? Ez nem vonható vissza.",
       onConfirm: async () => {
         await deleteFolder(folderId);
         if (currentFolder === folderId) setCurrentFolder(null);
@@ -338,7 +449,7 @@ function makeShare() {
 
   function onDeleteVideo(videoId: string) {
     setConfirmDialog({
-      message: "Delete this video? This cannot be undone.",
+      message: "Törlöd ezt a videót? Ez nem vonható vissza.",
       onConfirm: async () => {
         await deleteVideo(videoId);
         refresh();
@@ -348,7 +459,7 @@ function makeShare() {
 
   function onDeleteImage(imageId: string) {
     setConfirmDialog({
-      message: "Delete this image? This cannot be undone.",
+      message: "Törlöd ezt a képet? Ez nem vonható vissza.",
       onConfirm: async () => {
         await deleteImage(imageId);
         refresh();
@@ -395,7 +506,7 @@ function makeShare() {
     const total = vIds.length + iIds.length;
     if (total === 0) return;
     setConfirmDialog({
-      message: `Delete ${total} selected ${total === 1 ? "item" : "items"}? This cannot be undone.`,
+      message: `Törlöd a kijelölt ${total} elemet? Ez nem vonható vissza.`,
       onConfirm: async () => {
         for (const vid of vIds) {
           await deleteVideo(vid).catch(() => {});
@@ -422,21 +533,21 @@ function makeShare() {
   const selectedCount = selectedVideos.size + selectedImages.size;
 
   return (
-    <main className="mx-auto max-w-5xl px-6 py-12">
+    <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6 sm:py-12">
       <a href="/admin" className="font-mono text-xs uppercase tracking-eyebrow text-mist">
-        ← All projects
+        ← Összes projekt
       </a>
 
       <div className="mt-4 grid gap-8 lg:grid-cols-[1.1fr_1fr]">
-        {/* Settings */}
-        <section className="rounded-2xl border border-ink-line bg-ink-card p-6">
-          <h2 className="font-display text-xl text-bone">Project details</h2>
+        {/* Beállítások */}
+        <section className="rounded-2xl border border-ink-line bg-ink-card p-4 sm:p-6">
+          <h2 className="font-display text-xl text-bone">Projekt adatai</h2>
           <div className="mt-5 space-y-3">
             {[
-              ["title", "Project title"],
-              ["client_name", "Client name"],
-              ["project_date", "Date (e.g. 2026-06-17)"],
-              ["slug", "Portal slug"],
+              ["title", "Projekt címe"],
+              ["client_name", "Ügyfél neve"],
+              ["project_date", "Dátum (pl. 2026-06-17)"],
+              ["slug", "Portál azonosító (slug)"],
             ].map(([key, label]) => (
               <Field
                 key={key}
@@ -449,23 +560,26 @@ function makeShare() {
             <div>
               <div className="flex items-center justify-between">
                 <label className="font-mono text-[11px] uppercase tracking-eyebrow text-mist">
-                  Cover image
+                  Borítókép
                 </label>
                 <div className="flex items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() => coverRef.current?.click()}
-                    className="text-xs text-ember hover:underline"
-                  >
-                    Upload
-                  </button>
+                  <label className="inline-flex cursor-pointer items-center gap-2 rounded-full bg-ember px-3 py-1.5 text-xs font-medium text-white transition hover:bg-ember/90">
+                    <Upload className="h-3.5 w-3.5" />
+                    Feltöltés
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={onCoverUpload}
+                    />
+                  </label>
                   {form.cover_image_url && (
                     <button
                       type="button"
                       onClick={onDeleteCover}
                       className="text-xs text-mist hover:text-ember hover:underline"
                     >
-                      Remove
+                      Eltávolítás
                     </button>
                   )}
                 </div>
@@ -474,22 +588,15 @@ function makeShare() {
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={form.cover_image_url}
-                  alt="Cover"
+                  alt="Borító"
                   className="mt-2 h-32 w-full rounded-2xl border border-ink-line object-cover"
                 />
               )}
-              <input
-                ref={coverRef}
-                type="file"
-                accept="image/*"
-                hidden
-                onChange={onCoverUpload}
-              />
             </div>
 
             <div>
               <label className="font-mono text-[11px] uppercase tracking-eyebrow text-mist">
-                Description
+                Leírás
               </label>
               <textarea
                 value={form.description}
@@ -501,7 +608,7 @@ function makeShare() {
 
             <div>
               <label className="font-mono text-[11px] uppercase tracking-eyebrow text-mist">
-                Brand
+                Márka
               </label>
               <div className="mt-1.5 flex gap-2">
                 <button
@@ -530,7 +637,7 @@ function makeShare() {
             </div>
             <div>
               <label className="font-mono text-[11px] uppercase tracking-eyebrow text-mist">
-                Available until
+                Elérhető eddig
               </label>
               <input
                 type="date"
@@ -543,16 +650,16 @@ function makeShare() {
                   {(() => {
                     const d = daysLeft();
                     if (d === null) return null;
-                    if (d < 0) return "Expired — portal is hidden from clients.";
-                    if (d === 0) return "Expires today.";
-                    return `${d} ${d === 1 ? "day" : "days"} left until the portal hides its content.`;
+                    if (d < 0) return "Lejárt — a portál rejtve van az ügyfelek elől.";
+                    if (d === 0) return "Ma jár le.";
+                    return `${d} nap van hátra, amíg a portál elrejti a tartalmat.`;
                   })()}
                 </p>
               )}
             </div>
             <div>
               <label className="font-mono text-[11px] uppercase tracking-eyebrow text-mist">
-                On expiry
+                Lejáratkor
               </label>
               <div className="mt-1.5 flex gap-2">
                 <button
@@ -564,7 +671,7 @@ function makeShare() {
                       : "border-ink-line text-mist hover:text-bone"
                   }`}
                 >
-                  Contact us
+                  Kapcsolatfelvétel
                 </button>
                 <button
                   type="button"
@@ -575,19 +682,19 @@ function makeShare() {
                       : "border-ink-line text-mist hover:text-bone"
                   }`}
                 >
-                  Paid extension
+                  Fizetős hosszabbítás
                 </button>
               </div>
               <p className="mt-1.5 text-xs text-mist">
                 {form.payment_mode === "paid"
-                  ? "Clients can pay to extend access after expiry."
-                  : "Clients see a contact message after expiry."}
+                  ? "Az ügyfelek fizetéssel meghosszabbíthatják a hozzáférést lejárat után."
+                  : "Az ügyfelek kapcsolatfelvételi üzenetet látnak lejárat után."}
               </p>
             </div>
             <div>
               <div className="flex items-center justify-between">
                 <label className="font-mono text-[11px] uppercase tracking-eyebrow text-mist">
-                  Password {data.has_password ? "(set)" : "(none)"}
+                  Jelszó {data.has_password ? "(beállítva)" : "(nincs)"}
                 </label>
                 {data.has_password && (
                   <button
@@ -595,14 +702,14 @@ function makeShare() {
                     onClick={clearPassword}
                     className="text-xs text-ember hover:underline"
                   >
-                    Reset password
+                    Jelszó törlése
                   </button>
                 )}
               </div>
               <input
                 type="password"
                 value={form.password}
-                placeholder={data.has_password ? "New password (leave empty to keep)" : "Set password"}
+                placeholder={data.has_password ? "Új jelszó (üresen hagyva megmarad)" : "Jelszó beállítása"}
                 onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
                 className="mt-1.5 w-full rounded-full border border-ink-line bg-ink px-4 py-2.5 text-bone outline-none focus:border-ember/60"
               />
@@ -612,93 +719,111 @@ function makeShare() {
           <div className="mt-5 flex flex-wrap items-center gap-3">
             <Button variant="primary" onClick={save}>
               <Save className="h-4 w-4" />
-              {saved ? "Saved" : "Save changes"}
+              {saved ? "Mentve" : "Mentés"}
             </Button>
             <Button variant="ghost" asChild>
               <a href={portalUrl} target="_blank">
-                View portal
+                Portál megtekintése
               </a>
             </Button>
             <Button variant="ghost" onClick={makeShare}>
               <Link2 className="h-4 w-4" />
-              Share link
+              Megosztó link
             </Button>
             <button
               onClick={onDeleteProject}
               className="ml-auto flex items-center gap-2 rounded-full border border-ember/40 px-4 py-2 text-sm text-ember transition hover:bg-ember/10"
             >
               <Trash2 className="h-4 w-4" />
-              Delete project
+              Projekt törlése
             </button>
           </div>
           {shareUrl && (
             <p className="mt-3 break-all rounded-xl border border-ink-line bg-ink px-3 py-2 font-mono text-xs text-mist">
-              Copied: {shareUrl}
+              Másolva: {shareUrl}
             </p>
           )}
         </section>
 
-        {/* Files / Folders (Drive-like) */}
-        <section className="rounded-2xl border border-ink-line bg-ink-card p-6">
-          <div className="flex items-center justify-between gap-3">
+        {/* Fájlok / Mappák (Drive-szerű) */}
+        <section className="rounded-2xl border border-ink-line bg-ink-card p-4 sm:p-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex min-w-0 items-center gap-2">
               {currentFolder && (
                 <button
                   onClick={() => setCurrentFolder(null)}
-                  title="Back"
+                  title="Vissza"
                   className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-mist transition hover:bg-white/[0.05] hover:text-bone"
                 >
                   <ArrowLeft className="h-4 w-4" />
                 </button>
               )}
               <h2 className="truncate font-display text-xl text-bone">
-                {openFolder ? openFolder.name : "Content"}
+                {openFolder ? openFolder.name : "Tartalom"}
               </h2>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex shrink-0 items-center gap-2">
               <Button variant="ghost" size="sm" onClick={onCreateFolder}>
                 <FolderPlus className="h-4 w-4" />
-                New folder
-              </Button>
-              <Button variant="ember" size="sm" onClick={() => fileRef.current?.click()}>
-                <Upload className="h-4 w-4" />
-                Upload
+                Új mappa
               </Button>
             </div>
-            <input
-              ref={fileRef}
-              type="file"
-              accept="video/*,image/*"
-              multiple
-              hidden
-              onChange={onUpload}
-            />
             <input ref={replaceRef} type="file" accept="video/*" hidden onChange={onReplace} />
           </div>
 
           <p className="mt-2 text-xs text-mist">
             {currentFolder
-              ? "Uploaded videos and images will go into this folder."
-              : "Open a folder, or upload videos and images here without a folder."}
+              ? "A feltöltött videók és képek ebbe a mappába kerülnek."
+              : "Nyiss meg egy mappát, vagy tölts fel ide videókat és képeket mappa nélkül."}
           </p>
 
-          {/* Selection bar */}
+          {/* Drag & drop zóna — Atlas böngészőben is működik, mert nincs fájlválasztó */}
+          <label
+            onDragOver={(e) => {
+              e.preventDefault();
+              setDragOver(true);
+            }}
+            onDragLeave={() => setDragOver(false)}
+            onDrop={onDropFiles}
+            className={`mt-3 flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-2xl border-2 border-dashed px-4 py-8 text-center transition ${
+              dragOver
+                ? "border-ember bg-ember/10"
+                : "border-ink-line bg-ink hover:border-ember/50"
+            }`}
+          >
+            <Upload className="h-6 w-6 text-mist" />
+            <span className="text-sm text-bone">
+              Húzd ide a fájlokat vagy egy egész mappát
+            </span>
+            <span className="text-[11px] text-mist">
+              Mappa húzásakor automatikusan létrejön a mappa a benne lévő fájlokkal. Vagy kattints a tallózáshoz.
+            </span>
+            <input
+              type="file"
+              accept="video/*,image/*"
+              multiple
+              className="hidden"
+              onChange={onUpload}
+            />
+          </label>
+
+          {/* Kijelölés sáv */}
           {selectedCount > 0 && (
             <div className="mt-4 flex items-center justify-between rounded-xl border border-ember/40 bg-ember/10 px-3 py-2.5">
-              <span className="text-sm text-bone">{selectedCount} selected</span>
+              <span className="text-sm text-bone">{selectedCount} kijelölve</span>
               <div className="flex items-center gap-3">
                 <button
                   onClick={clearSelection}
                   className="text-xs text-mist transition hover:text-bone"
                 >
-                  Clear
+                  Mégse
                 </button>
                 <button
                   onClick={onDeleteSelected}
                   className="flex items-center gap-2 rounded-full border border-ember/50 px-3 py-1.5 text-xs text-ember transition hover:bg-ember/20"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
-                  Delete selected
+                  Kijelöltek törlése
                 </button>
               </div>
             </div>
@@ -736,6 +861,27 @@ function makeShare() {
             </div>
           )}
 
+          {videoBatch && (
+            <div className="mt-4 rounded-xl border border-ember/40 bg-ember/10 px-3 py-2.5">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-bone">
+                  Videó feltöltése: {Math.min(videoBatch.done + 1, videoBatch.total)} /{" "}
+                  {videoBatch.total}
+                </span>
+                <span className="font-mono text-[11px] text-mist">
+                  {(() => {
+                    if (videoBatch.done === 0) return "Becslés…";
+                    const elapsed = (Date.now() - videoBatch.startedAt) / 1000;
+                    const perItem = elapsed / videoBatch.done;
+                    const remaining = Math.round(perItem * (videoBatch.total - videoBatch.done));
+                    if (remaining < 60) return `~${remaining} mp van hátra`;
+                    return `~${Math.ceil(remaining / 60)} perc van hátra`;
+                  })()}
+                </span>
+              </div>
+            </div>
+          )}
+
           {uploads.length > 0 && (
             <div className="mt-4 space-y-2">
               {uploads.map((u) => (
@@ -746,7 +892,7 @@ function makeShare() {
                   <div className="mb-1.5 flex items-center justify-between">
                     <span className="truncate text-sm text-bone">{u.name}</span>
                     <span className="font-mono text-[11px] text-mist">
-                      {u.percent < 100 ? `${u.percent}%` : "Processing…"}
+                      {u.percent < 100 ? `${u.percent}%` : "Feldolgozás…"}
                     </span>
                   </div>
                   <div className="h-1.5 w-full overflow-hidden rounded-full bg-ink-line">
@@ -760,7 +906,7 @@ function makeShare() {
             </div>
           )}
 
-          {/* Folders (root only) */}
+          {/* Mappák (csak gyökérben) */}
           {!currentFolder && folders.length > 0 && (
             <ul className="mt-4 space-y-2">
               {folders.map((f) => {
@@ -778,18 +924,18 @@ function makeShare() {
                       <FolderIcon className="h-5 w-5 shrink-0 text-ember" />
                       <span className="truncate text-sm text-bone">{f.name}</span>
                       <span className="ml-auto shrink-0 font-mono text-[11px] text-mist">
-                        {vCount + iCount} {vCount + iCount === 1 ? "item" : "items"}
+                        {vCount + iCount} elem
                       </span>
                     </button>
                     <button
-                      title="Rename"
+                      title="Átnevezés"
                       onClick={() => onRenameFolder(f.id)}
                       className="text-mist transition hover:text-bone"
                     >
                       <Pencil className="h-4 w-4" />
                     </button>
                     <button
-                      title="Delete folder"
+                      title="Mappa törlése"
                       onClick={() => onDeleteFolder(f.id)}
                       className="text-mist transition hover:text-ember"
                     >
@@ -801,7 +947,7 @@ function makeShare() {
             </ul>
           )}
 
-          {/* Videos in current view */}
+          {/* Videók az aktuális nézetben */}
           <ul className="mt-2 space-y-2">
             {visibleVideos.map((v) => {
               const isSelected = selectedVideos.has(v.id);
@@ -812,7 +958,7 @@ function makeShare() {
                   onDragStart={() => (dragId.current = v.id)}
                   onDragOver={(e) => e.preventDefault()}
                   onDrop={() => onDrop(v.id)}
-                  className={`flex items-center gap-3 rounded-xl border bg-ink px-3 py-2.5 ${
+                  className={`flex items-center gap-2 rounded-xl border bg-ink px-2.5 py-2.5 sm:gap-3 sm:px-3 ${
                     isSelected ? "border-ember/60" : "border-ink-line"
                   }`}
                 >
@@ -823,8 +969,8 @@ function makeShare() {
                     onClick={(e) => e.stopPropagation()}
                     className="h-4 w-4 shrink-0 cursor-pointer accent-ember"
                   />
-                  <GripVertical className="h-4 w-4 shrink-0 cursor-grab text-mist" />
-                  <div className="h-9 w-16 shrink-0 overflow-hidden rounded bg-ink-soft">
+                  <GripVertical className="hidden h-4 w-4 shrink-0 cursor-grab text-mist sm:block" />
+                  <div className="h-9 w-12 shrink-0 overflow-hidden rounded bg-ink-soft sm:w-16">
                     {v.thumbnail_url && (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={v.thumbnail_url} alt="" className="h-full w-full object-cover" />
@@ -836,13 +982,13 @@ function makeShare() {
                       {v.status === "ready"
                         ? `${v.resolution_label} · ${formatDuration(v.duration_seconds)} · ${formatBytes(v.size_bytes)}`
                         : v.status === "processing"
-                        ? "Processing…"
-                        : "Failed"}
+                        ? "Feldolgozás…"
+                        : "Sikertelen"}
                     </p>
                   </div>
                   {currentFolder && (
                     <button
-                      title="Remove from folder"
+                      title="Kivétel a mappából"
                       onClick={() => onRemoveFromFolder(v.id)}
                       className="text-mist transition hover:text-bone"
                     >
@@ -850,7 +996,14 @@ function makeShare() {
                     </button>
                   )}
                   <button
-                    title="Replace"
+                    title="Átnevezés"
+                    onClick={() => onRenameVideo(v.id)}
+                    className="text-mist transition hover:text-bone"
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </button>
+                  <button
+                    title="Csere"
                     onClick={() => {
                       replaceId.current = v.id;
                       replaceRef.current?.click();
@@ -860,7 +1013,7 @@ function makeShare() {
                     <Replace className="h-4 w-4" />
                   </button>
                   <button
-                    title="Delete"
+                    title="Törlés"
                     onClick={() => onDeleteVideo(v.id)}
                     className="text-mist transition hover:text-ember"
                   >
@@ -872,17 +1025,17 @@ function makeShare() {
             {visibleVideos.length === 0 && (
               <li className="py-8 text-center text-sm text-mist">
                 {currentFolder
-                  ? "No videos in this folder."
-                  : "No videos without a folder."}
+                  ? "Nincs videó ebben a mappában."
+                  : "Nincs mappán kívüli videó."}
               </li>
             )}
           </ul>
 
-          {/* Images in current view */}
+          {/* Képek az aktuális nézetben */}
           {visibleImages.length > 0 && (
             <div className="mt-6">
               <h3 className="mb-3 font-mono text-[11px] uppercase tracking-eyebrow text-mist">
-                Images ({visibleImages.length})
+                Képek ({visibleImages.length})
               </h3>
               <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
                 {visibleImages.map((img) => (
@@ -992,7 +1145,7 @@ function LazyImageCell({
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center gap-2 bg-black/50 opacity-0 transition group-hover:opacity-100">
             {inFolder && (
               <button
-                title="Remove from folder"
+                title="Kivétel a mappából"
                 onClick={onRemoveFromFolder}
                 className="pointer-events-auto flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-bone transition hover:text-white"
               >
@@ -1000,7 +1153,7 @@ function LazyImageCell({
               </button>
             )}
             <button
-              title="Delete"
+              title="Törlés"
               onClick={onDelete}
               className="pointer-events-auto flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-bone transition hover:text-ember"
             >
@@ -1076,7 +1229,7 @@ function PromptDialog({
         />
         <div className="mt-5 flex justify-end gap-3">
           <Button variant="ghost" size="sm" onClick={onCancel}>
-            Cancel
+            Mégse
           </Button>
           <Button variant="primary" size="sm" onClick={() => onConfirm(value)}>
             OK
@@ -1108,13 +1261,13 @@ function ConfirmDialog({
         <p className="text-sm leading-relaxed text-bone">{message}</p>
         <div className="mt-5 flex justify-end gap-3">
           <Button variant="ghost" size="sm" onClick={onCancel}>
-            Cancel
+            Mégse
           </Button>
           <button
             onClick={onConfirm}
             className="flex items-center gap-2 rounded-full border border-ember/40 px-4 py-2 text-sm text-ember transition hover:bg-ember/10"
           >
-            Delete
+            Törlés
           </button>
         </div>
       </div>

@@ -4,24 +4,33 @@ import { useParams, useSearchParams } from "next/navigation";
 import { getPublicProject, getByShare, PublicProject } from "@/lib/api";
 import { PortalView } from "@/components/portal-view";
 import { PasswordGate } from "@/components/password-gate";
+import { usePortalTheme } from "@/components/theme-toggle";
 
 export default function PortalClient() {
+  const { dark, setTheme, mounted } = usePortalTheme();
+
   return (
-    <Suspense
-      fallback={
-        <main className="flex min-h-screen items-center justify-center">
-          <span className="font-mono text-xs uppercase tracking-eyebrow text-mist">
-            Loading portal…
-          </span>
-        </main>
-      }
-    >
-      <PortalContent />
-    </Suspense>
+    <div className={`${dark ? "dark" : ""} min-h-screen bg-ink text-bone`}>
+      <Suspense
+        fallback={
+          <main className="flex min-h-screen items-center justify-center">
+            <span className="font-mono text-xs uppercase tracking-eyebrow text-mist">
+              Portál betöltése…
+            </span>
+          </main>
+        }
+      >
+        <PortalContent theme={{ dark, setTheme, mounted }} />
+      </Suspense>
+    </div>
   );
 }
 
-function PortalContent() {
+function PortalContent({
+  theme,
+}: {
+  theme: { dark: boolean; setTheme: (d: boolean) => void; mounted: boolean };
+}) {
   const params = useParams();
   const search = useSearchParams();
   const slug = params.slug as string;
@@ -81,7 +90,7 @@ function PortalContent() {
         }
       }
     } catch {
-      setError("This portal could not be found.");
+      setError("Ez a portál nem található.");
     } finally {
       setLoading(false);
     }
@@ -96,7 +105,7 @@ function PortalContent() {
     return (
       <main className="flex min-h-screen items-center justify-center">
         <span className="font-mono text-xs uppercase tracking-eyebrow text-mist">
-          Loading portal…
+          Portál betöltése…
         </span>
       </main>
     );
@@ -104,7 +113,7 @@ function PortalContent() {
   if (error) {
     return (
       <main className="flex min-h-screen flex-col items-center justify-center gap-3 px-6 text-center">
-        <h1 className="font-display text-3xl text-bone">Portal not found</h1>
+        <h1 className="font-display text-3xl text-bone">A portál nem található</h1>
         <p className="text-mist">{error}</p>
       </main>
     );
@@ -142,9 +151,10 @@ function PortalContent() {
         project={minimalProject}
         expiredContactEmail={expired.contact_email}
         expiredPaymentMode={expired.payment_mode}
+        theme={theme}
       />
     );
   }
 
-  return project ? <PortalView project={project} /> : null;
+  return project ? <PortalView project={project} theme={theme} /> : null;
 }

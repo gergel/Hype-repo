@@ -8,8 +8,8 @@ class Settings(BaseSettings):
     APP_NAME: str = "HYPE Portal"
     SECRET_KEY: str = "change-me-in-prod"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24
-    ADMIN_EMAIL: str = "admin@hype.studio"
-    ADMIN_PASSWORD: str = "change-me"
+    ADMIN_EMAIL: str = "hype.stab@gmail.com"
+    ADMIN_PASSWORD: str = "Hype2015"
     FRONTEND_URL: str = "http://localhost:3000"
 
     # Database
