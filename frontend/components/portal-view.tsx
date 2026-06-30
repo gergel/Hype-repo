@@ -1018,7 +1018,7 @@ function AszfModal({ onClose }: { onClose: () => void }) {
   const sections = [
     {
       h: "1. Szolgáltató adatai",
-      p: "Cégnév: Hype Productions Korlátolt Felelősségű Társaság · Rövidített cégnév: Hype Productions Kft. · Székhely: 1045 Budapest, Virág utca 24. I. emelet 2. · Cégjegyzékszám: 01-09-988327 · Adószám: 23995828-2-41 · Nyilvántartó bíróság: Fővárosi Törvényszék Cégbírósága · E-mail: info@hypestab.hu · Honlap: https://hypeclient.com",
+      p: "Cégnév: Hype Productions Korlátolt Felelősségű Társaság · Rövidített cégnév: Hype Productions Kft. · Székhely: 3036 Gyöngyöstarján, Kossuth Lajos utca 3. · Cégjegyzékszám: 10-09-041944 · Adószám: 23995828-2-10 · Nyilvántartó bíróság: Egri Törvényszék Cégbírósága · E-mail: info@hypestab.hu · Honlap: https://hypeclient.com",
     },
     {
       h: "2. A szolgáltatás leírása",
