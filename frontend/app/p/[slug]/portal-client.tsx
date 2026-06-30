@@ -4,18 +4,13 @@ import { useParams, useSearchParams } from "next/navigation";
 import { getPublicProject, getByShare, PublicProject } from "@/lib/api";
 import { PortalView } from "@/components/portal-view";
 import { PasswordGate } from "@/components/password-gate";
-import { ThemeToggle, usePortalTheme } from "@/components/theme-toggle";
+import { usePortalTheme } from "@/components/theme-toggle";
 
 export default function PortalClient() {
   const { dark, setTheme, mounted } = usePortalTheme();
 
   return (
     <div className={`${dark ? "dark" : ""} min-h-screen bg-ink text-bone`}>
-      {mounted && (
-        <div className="fixed right-4 top-4 z-[200]">
-          <ThemeToggle dark={dark} onChange={setTheme} />
-        </div>
-      )}
       <Suspense
         fallback={
           <main className="flex min-h-screen items-center justify-center">
@@ -25,13 +20,17 @@ export default function PortalClient() {
           </main>
         }
       >
-        <PortalContent />
+        <PortalContent theme={{ dark, setTheme, mounted }} />
       </Suspense>
     </div>
   );
 }
 
-function PortalContent() {
+function PortalContent({
+  theme,
+}: {
+  theme: { dark: boolean; setTheme: (d: boolean) => void; mounted: boolean };
+}) {
   const params = useParams();
   const search = useSearchParams();
   const slug = params.slug as string;
@@ -152,9 +151,10 @@ function PortalContent() {
         project={minimalProject}
         expiredContactEmail={expired.contact_email}
         expiredPaymentMode={expired.payment_mode}
+        theme={theme}
       />
     );
   }
 
-  return project ? <PortalView project={project} /> : null;
+  return project ? <PortalView project={project} theme={theme} /> : null;
 }
