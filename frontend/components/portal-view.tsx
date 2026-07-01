@@ -909,13 +909,13 @@ function PaymentPackages({
           )}
           <div className="flex gap-2.5">
             <input
-              className={`${inputClass} w-1/3`}
+              className={`${inputClass} w-24 shrink-0`}
               placeholder="Irsz."
               value={zip}
               onChange={(e) => setZip(e.target.value)}
             />
             <input
-              className={`${inputClass} flex-1`}
+              className={`${inputClass} min-w-0 flex-1`}
               placeholder="Város"
               value={city}
               onChange={(e) => setCity(e.target.value)}
