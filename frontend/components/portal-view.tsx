@@ -351,7 +351,7 @@ export function PortalView({
               <img
                 src="/payment-methods.png"
                 alt="Elfogadott fizetési módok: Barion, Mastercard, VISA, Apple Pay, Google Pay"
-                className="h-8 w-auto rounded bg-white p-1.5 sm:h-9"
+                className="h-14 w-auto rounded-lg bg-white p-2.5 sm:h-16"
               />
             </div>
           </div>
