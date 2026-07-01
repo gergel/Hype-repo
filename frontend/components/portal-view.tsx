@@ -341,6 +341,19 @@ export function PortalView({
                 ÁSZF
               </button>
             </div>
+
+            {/* Barion elfogadott fizetési módok */}
+            <div className="mt-8 border-t border-ink-line pt-6">
+              <p className="mb-3 font-mono text-[11px] uppercase tracking-eyebrow text-mist">
+                Biztonságos fizetés
+              </p>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/payment-methods.png"
+                alt="Elfogadott fizetési módok: Barion, Mastercard, VISA, Apple Pay, Google Pay"
+                className="h-8 w-auto rounded bg-white p-1.5 sm:h-9"
+              />
+            </div>
           </div>
         </section>
       )}
