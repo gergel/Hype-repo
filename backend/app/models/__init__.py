@@ -134,3 +134,27 @@ class Image(Base):
     sort_order = Column(Integer, default=0)
     created_at = Column(DateTime(timezone=True), default=_now)
     project = relationship("Project", back_populates="images")
+
+
+class Payment(Base):
+    __tablename__ = "payments"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    payment_request_id = Column(String, index=True, default="")
+    project_id = Column(String, default="")
+    package_code = Column(String, default="")
+    amount = Column(Integer, default=0)          # bruttó összeg HUF
+    status = Column(String, default="started")   # started | succeeded | failed
+    barion_payment_id = Column(String, default="")
+
+    # Számlázási adatok
+    billing_type = Column(String, default="individual")  # individual | company
+    billing_name = Column(String, default="")
+    billing_zip = Column(String, default="")
+    billing_city = Column(String, default="")
+    billing_address = Column(String, default="")
+    billing_tax_number = Column(String, default="")  # csak cégnél
+    billing_email = Column(String, default="")
+
+    invoice_number = Column(String, default="")  # Számlázz.hu számla sorszáma
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
