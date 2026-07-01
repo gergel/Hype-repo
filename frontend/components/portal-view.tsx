@@ -867,6 +867,19 @@ function PaymentPackages({
           </button>
         ))}
       </div>
+
+      {/* Barion elfogadott fizetési módok */}
+      <div className="mt-6 flex flex-col items-center gap-2">
+        <p className="font-mono text-[11px] uppercase tracking-eyebrow text-mist">
+          Biztonságos fizetés
+        </p>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/payment-methods.png"
+          alt="Elfogadott fizetési módok: Barion, Mastercard, VISA, Apple Pay, Google Pay"
+          className="h-12 w-auto rounded-lg bg-white p-2 sm:h-14"
+        />
+      </div>
     </div>
   );
 }
