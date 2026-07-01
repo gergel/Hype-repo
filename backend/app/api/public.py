@@ -9,9 +9,9 @@ from app.core.security import (
     create_access_token,
     decode_token,
 )
-from app.models import Project, Video, Image
+from app.models import Project, Video, Image, Payment
 from app.schemas import PublicProject, ProjectUnlock, VideoOut, FolderOut, ImageOut
-from app.services import storage, barion
+from app.services import storage, barion, szamlazz
 from app.core.config import settings
 
 router = APIRouter(prefix="/api/public", tags=["public"])
@@ -179,6 +179,23 @@ def start_payment(slug: str, payload: dict, db: Session = Depends(get_db)):
     if not pkg:
         raise HTTPException(status_code=400, detail="Invalid package")
 
+    # Számlázási adatok a portál űrlapjából
+    billing = payload.get("billing") or {}
+    billing_type = billing.get("type", "individual")
+    billing_name = (billing.get("name") or "").strip()
+    billing_zip = (billing.get("zip") or "").strip()
+    billing_city = (billing.get("city") or "").strip()
+    billing_address = (billing.get("address") or "").strip()
+    billing_tax_number = (billing.get("tax_number") or "").strip()
+    billing_email = (billing.get("email") or "").strip()
+
+    # Minimális ellenőrzés: név, cím kell; cégnél adószám is
+    if not billing_name or not billing_zip or not billing_city or not billing_address:
+        raise HTTPException(status_code=400, detail="Missing billing data")
+    if billing_type == "company" and not billing_tax_number:
+        raise HTTPException(status_code=400, detail="Missing tax number")
+
+    # Egyedi fizetési azonosító: projekt + csomag + időbélyeg
     ts = int(datetime.now(timezone.utc).timestamp())
     payment_request_id = f"{project.id}_{pkg_code}_{ts}"
 
@@ -201,6 +218,25 @@ def start_payment(slug: str, payload: dict, db: Session = Depends(get_db)):
     gateway_url = data.get("GatewayUrl")
     if not gateway_url:
         raise HTTPException(status_code=502, detail="No gateway URL")
+
+    # Fizetés + számlázási adatok mentése (a callback ebből állít számlát)
+    payment = Payment(
+        payment_request_id=payment_request_id,
+        project_id=project.id,
+        package_code=pkg_code,
+        amount=pkg["amount"],
+        status="started",
+        barion_payment_id=data.get("PaymentId", ""),
+        billing_type=billing_type,
+        billing_name=billing_name,
+        billing_zip=billing_zip,
+        billing_city=billing_city,
+        billing_address=billing_address,
+        billing_tax_number=billing_tax_number,
+        billing_email=billing_email,
+    )
+    db.add(payment)
+    db.commit()
 
     return {"gateway_url": gateway_url}
 
@@ -237,22 +273,46 @@ async def barion_callback(request: Request, db: Session = Depends(get_db)):
     print(f"[barion] status={status} request_id={request_id}", flush=True)
 
     if status == "Succeeded":
+        # request_id formátuma: "{project_id}_{pkg_code}_{ts}"
         parts = request_id.split("_")
-        print(f"[barion] parts={parts}", flush=True)
         if len(parts) >= 2:
             project_id = parts[0]
             pkg_code = parts[1]
             pkg = PACKAGES.get(pkg_code)
             project = db.query(Project).get(project_id)
-            print(f"[barion] project_found={bool(project)} pkg={pkg}", flush=True)
             if project and pkg:
                 now = datetime.now(timezone.utc)
                 current = project.expires_at
                 if current and current.tzinfo is None:
                     current = current.replace(tzinfo=timezone.utc)
+                # A későbbitől számolunk: mostani lejárat vagy ma, amelyik később van
                 base_date = current if (current and current > now) else now
                 project.expires_at = base_date + timedelta(days=pkg["days"])
                 db.commit()
-                print(f"[barion] extended to {project.expires_at}", flush=True)
+
+            # Számla kiállítása (csak egyszer, ha még nincs)
+            payment = (
+                db.query(Payment)
+                .filter(Payment.payment_request_id == request_id)
+                .first()
+            )
+            if payment and payment.status != "succeeded":
+                payment.status = "succeeded"
+                db.commit()
+                if not payment.invoice_number:
+                    result = szamlazz.create_invoice(
+                        buyer_name=payment.billing_name,
+                        buyer_zip=payment.billing_zip,
+                        buyer_city=payment.billing_city,
+                        buyer_address=payment.billing_address,
+                        buyer_tax_number=payment.billing_tax_number,
+                        buyer_email=payment.billing_email,
+                        item_name=pkg["label"] if pkg else "Tárhely-hosszabbítás",
+                        gross_amount=payment.amount,
+                        vat_rate=27,
+                    )
+                    if result.get("ok"):
+                        payment.invoice_number = result.get("invoice_number", "")
+                        db.commit()
 
     return {"ok": True}
