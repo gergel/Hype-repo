@@ -440,6 +440,32 @@ export async function deleteVideo(videoId: string) {
   return req(`/admin/videos/${videoId}`, { method: "DELETE", headers: authHeaders() });
 }
 
+
+export interface PendingDeletionProject {
+  id: string;
+  title: string;
+  client_name: string;
+  expires_at: string;
+  video_count: number;
+  image_count: number;
+}
+
+export async function getPendingDeletion() {
+  return req<PendingDeletionProject[]>(`/admin/maintenance/pending-deletion`, {
+    headers: authHeaders(),
+  });
+}
+
+export async function purgeProjectFiles(projectId: string) {
+  return req<{ ok: boolean; purged: boolean }>(
+    `/admin/maintenance/projects/${projectId}/purge-files`,
+    {
+      method: "POST",
+      headers: authHeaders(),
+    }
+  );
+}
+
 export async function syncNotion() {
   return req<{ synced: number }>(`/admin/notion/sync`, {
     method: "POST",
