@@ -40,6 +40,17 @@ def _is_expired(project: Project) -> bool:
     return datetime.now(timezone.utc) > end_of_day
 
 
+def _payment_window_closed(project: Project) -> bool:
+    """True, ha a lejárat után már több mint 90 nap eltelt — ekkor fizetni sem lehet."""
+    if not project.expires_at:
+        return False
+    exp = project.expires_at
+    if exp.tzinfo is None:
+        exp = exp.replace(tzinfo=timezone.utc)
+    deadline = exp.replace(hour=23, minute=59, second=59, microsecond=0) + timedelta(days=90)
+    return datetime.now(timezone.utc) > deadline
+
+
 def _serialize(project: Project) -> PublicProject:
     ready = [v for v in project.videos if v.status == "ready"]
     return PublicProject(
@@ -74,12 +85,16 @@ def get_public_project(
         raise HTTPException(status_code=404, detail="Project not found")
 
     if _is_expired(project):
+        closed = _payment_window_closed(project)
         return {
             "expired": True,
             "title": project.title,
             "brand": project.brand,
             "contact_email": _contact_email(project),
-            "payment_mode": project.payment_mode,
+            # Ha a 90 napos fizetős ablak lejárt, a portál ne kínáljon fizetést,
+            # hanem csak a kapcsolatfelvételi üzenetet mutassa.
+            "payment_mode": "contact" if closed else project.payment_mode,
+            "payment_closed": closed,
             "slug": project.slug,
         }
 

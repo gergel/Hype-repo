@@ -424,6 +424,66 @@ def backfill_video_sizes(db: Session = Depends(get_db), _: str = Depends(require
     return {"updated": updated, "skipped": skipped, "total": len(videos), "errors": errors[:5]}
 
 
+@router.get("/maintenance/pending-deletion")
+def pending_deletion(db: Session = Depends(get_db), _: str = Depends(require_admin)):
+    """A 90+ napja lejárt FIZETŐS projektek, amelyek anyagai törölhetők.
+    A projekt maga megmarad (kapcsolat-oldal), csak a fájlok törlendők az R2-ből."""
+    from datetime import datetime, timezone, timedelta
+
+    now = datetime.now(timezone.utc)
+    result = []
+    projects = db.query(Project).all()
+    for p in projects:
+        if p.payment_mode != "paid":
+            continue
+        if not p.expires_at:
+            continue
+        exp = p.expires_at
+        if exp.tzinfo is None:
+            exp = exp.replace(tzinfo=timezone.utc)
+        deadline = exp.replace(hour=23, minute=59, second=59, microsecond=0) + timedelta(days=90)
+        if now > deadline:
+            video_count = len(p.videos)
+            image_count = len(p.images)
+            # Ha már nincs se videó, se kép, akkor már törölve lett — kihagyjuk
+            if video_count == 0 and image_count == 0:
+                continue
+            result.append({
+                "id": p.id,
+                "title": p.title,
+                "client_name": p.client_name,
+                "expires_at": str(p.expires_at),
+                "video_count": video_count,
+                "image_count": image_count,
+            })
+    return result
+
+
+@router.post("/maintenance/projects/{project_id}/purge-files")
+def purge_project_files(
+    project_id: str, db: Session = Depends(get_db), _: str = Depends(require_admin)
+):
+    """Egy projekt ÖSSZES fájlját törli az R2-ből (videók + képek),
+    és eltávolítja a videó/kép rekordokat, de a PROJEKTET meghagyja
+    (hogy a kapcsolat-oldal továbbra is működjön)."""
+    project = db.query(Project).get(project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Not found")
+
+    # Videók törlése (R2 + rekord)
+    for v in list(project.videos):
+        storage.delete_prefix(f"videos/{v.id}")
+        db.delete(v)
+
+    # Képek törlése (R2 + rekord)
+    for img in db.query(Image).filter(Image.project_id == project_id).all():
+        storage.delete_prefix(f"images/{img.id}")
+        db.delete(img)
+
+    db.commit()
+    return {"ok": True, "purged": True}
+
+
 # ---------------- Folders ----------------
 @router.post("/projects/{project_id}/folders", response_model=FolderOut)
 def create_folder(

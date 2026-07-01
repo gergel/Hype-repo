@@ -1,13 +1,16 @@
 "use client";
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { Plus, ExternalLink, Trash2, LogOut } from "lucide-react";
+import { Plus, ExternalLink, Trash2, LogOut, AlertTriangle } from "lucide-react";
 import {
   adminLogin,
   listProjects,
   createProject,
   deleteProject,
+  getPendingDeletion,
+  purgeProjectFiles,
   ProjectSummary,
+  PendingDeletionProject,
 } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 
@@ -73,6 +76,7 @@ function Login({ onIn }: { onIn: () => void }) {
 
 function Dashboard({ onLogout }: { onLogout: () => void }) {
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
+  const [pending, setPending] = useState<PendingDeletionProject[]>([]);
   const [creating, setCreating] = useState(false);
   const [title, setTitle] = useState("");
   const [client, setClient] = useState("");
@@ -81,12 +85,24 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
   const [confirmDelete, setConfirmDelete] = useState<{ id: string; title: string } | null>(
     null
   );
+  const [confirmPurge, setConfirmPurge] = useState<{ id: string; title: string } | null>(
+    null
+  );
+  const [purging, setPurging] = useState(false);
 
   async function refresh() {
     setProjects(await listProjects());
   }
+  async function refreshPending() {
+    try {
+      setPending(await getPendingDeletion());
+    } catch {
+      setPending([]);
+    }
+  }
   useEffect(() => {
     refresh();
+    refreshPending();
   }, []);
 
   async function doCreate() {
@@ -114,6 +130,19 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
     await deleteProject(confirmDelete.id);
     setConfirmDelete(null);
     refresh();
+    refreshPending();
+  }
+
+  async function doPurge() {
+    if (!confirmPurge) return;
+    setPurging(true);
+    try {
+      await purgeProjectFiles(confirmPurge.id);
+      setConfirmPurge(null);
+      refreshPending();
+    } finally {
+      setPurging(false);
+    }
   }
 
   const visibleProjects = projects
@@ -153,6 +182,44 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
           </Button>
         </div>
       </div>
+
+      {/* Törlésre váró anyagok (90+ napja lejárt fizetős projektek) */}
+      {pending.length > 0 && (
+        <div className="mt-6 rounded-2xl border border-ember/40 bg-ember/[0.06] p-4 sm:p-5">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="h-5 w-5 shrink-0 text-ember" />
+            <h2 className="font-display text-lg text-bone">Törlésre váró anyagok</h2>
+          </div>
+          <p className="mt-1.5 text-sm text-mist">
+            Ezek a fizetős projektek több mint 90 napja lejártak. Az anyagok törölhetők az
+            R2 tárhelyből. A projekt megmarad, a kapcsolatfelvételi oldal továbbra is
+            működik.
+          </p>
+          <ul className="mt-4 space-y-2">
+            {pending.map((p) => (
+              <li
+                key={p.id}
+                className="flex flex-col gap-3 rounded-xl border border-ink-line bg-ink px-3 py-3 sm:flex-row sm:items-center sm:justify-between"
+              >
+                <div className="min-w-0">
+                  <p className="truncate text-sm text-bone">{p.title}</p>
+                  <p className="truncate font-mono text-[11px] text-mist">
+                    {p.client_name || "—"} · {p.video_count} videó · {p.image_count} kép ·
+                    lejárt: {p.expires_at.slice(0, 10)}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setConfirmPurge({ id: p.id, title: p.title })}
+                  className="flex shrink-0 items-center justify-center gap-2 rounded-full border border-ember/50 px-4 py-2 text-sm text-ember transition hover:bg-ember/10"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Fájlok törlése
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {creating && (
         <div className="mt-6 flex flex-wrap items-center gap-3 rounded-2xl border border-ink-line bg-ink-card p-4">
@@ -262,6 +329,43 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
                 className="flex items-center gap-2 rounded-full border border-ember/40 px-4 py-2 text-sm text-ember transition hover:bg-ember/10"
               >
                 Törlés
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Fájlok törlése (purge) megerősítő ablak */}
+      {confirmPurge && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-6"
+          onClick={() => !purging && setConfirmPurge(null)}
+        >
+          <div
+            className="w-full max-w-sm rounded-2xl border border-ink-line bg-ink-card p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <p className="text-sm leading-relaxed text-bone">
+              Törlöd a(z) &ldquo;{confirmPurge.title}&rdquo; projekt összes fájlját
+              (videók és képek) az R2 tárhelyből? A projekt megmarad, a kapcsolatfelvételi
+              oldal továbbra is működik. Ez a művelet nem vonható vissza.
+            </p>
+            <div className="mt-5 flex justify-end gap-3">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setConfirmPurge(null)}
+                disabled={purging}
+              >
+                Mégse
+              </Button>
+              <button
+                onClick={doPurge}
+                disabled={purging}
+                className="flex items-center gap-2 rounded-full border border-ember/40 px-4 py-2 text-sm text-ember transition hover:bg-ember/10 disabled:opacity-60"
+              >
+                <Trash2 className="h-4 w-4" />
+                {purging ? "Törlés…" : "Fájlok törlése"}
               </button>
             </div>
           </div>
