@@ -136,10 +136,24 @@ export async function getImageDownloadUrl(imageId: string): Promise<string> {
   return data.url;
 }
 
-export async function startPayment(slug: string, packageCode: string): Promise<string> {
+export interface BillingInfo {
+  type: "individual" | "company";
+  name: string;
+  zip: string;
+  city: string;
+  address: string;
+  tax_number: string;
+  email: string;
+}
+
+export async function startPayment(
+  slug: string,
+  packageCode: string,
+  billing: BillingInfo
+) {
   const data = await req<{ gateway_url: string }>(`/public/projects/${slug}/pay`, {
     method: "POST",
-    body: JSON.stringify({ package: packageCode }),
+    body: JSON.stringify({ package: packageCode, billing }),
   });
   return data.gateway_url;
 }
