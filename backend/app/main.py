@@ -28,6 +28,14 @@ def _migrate():
         "ALTER TABLE projects ADD COLUMN IF NOT EXISTS expires_at TIMESTAMP",
         "UPDATE projects SET expires_at = created_at + INTERVAL '180 days' WHERE expires_at IS NULL",
         "ALTER TABLE videos ALTER COLUMN size_bytes TYPE BIGINT",
+        "ALTER TABLE payments ADD COLUMN IF NOT EXISTS billing_type VARCHAR DEFAULT 'individual'",
+        "ALTER TABLE payments ADD COLUMN IF NOT EXISTS billing_name VARCHAR DEFAULT ''",
+        "ALTER TABLE payments ADD COLUMN IF NOT EXISTS billing_zip VARCHAR DEFAULT ''",
+        "ALTER TABLE payments ADD COLUMN IF NOT EXISTS billing_city VARCHAR DEFAULT ''",
+        "ALTER TABLE payments ADD COLUMN IF NOT EXISTS billing_address VARCHAR DEFAULT ''",
+        "ALTER TABLE payments ADD COLUMN IF NOT EXISTS billing_tax_number VARCHAR DEFAULT ''",
+        "ALTER TABLE payments ADD COLUMN IF NOT EXISTS billing_email VARCHAR DEFAULT ''",
+        "ALTER TABLE payments ADD COLUMN IF NOT EXISTS invoice_number VARCHAR DEFAULT ''",
     ]
     with engine.begin() as conn:
         for stmt in statements:
