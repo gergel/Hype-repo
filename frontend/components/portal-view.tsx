@@ -907,20 +907,18 @@ function PaymentPackages({
               onChange={(e) => setTaxNumber(e.target.value)}
             />
           )}
-          <div className="flex gap-2.5">
-            <input
-              className={`${inputClass} w-24 shrink-0`}
-              placeholder="Irsz."
-              value={zip}
-              onChange={(e) => setZip(e.target.value)}
-            />
-            <input
-              className={`${inputClass} min-w-0 flex-1`}
-              placeholder="Város"
-              value={city}
-              onChange={(e) => setCity(e.target.value)}
-            />
-          </div>
+          <input
+            className={inputClass}
+            placeholder="Irányítószám"
+            value={zip}
+            onChange={(e) => setZip(e.target.value)}
+          />
+          <input
+            className={inputClass}
+            placeholder="Város"
+            value={city}
+            onChange={(e) => setCity(e.target.value)}
+          />
           <input
             className={inputClass}
             placeholder="Cím (utca, házszám)"
