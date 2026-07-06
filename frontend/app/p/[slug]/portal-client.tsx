@@ -146,10 +146,9 @@ function PortalContent() {
         project={minimalProject}
         expiredContactEmail={expired.contact_email}
         expiredPaymentMode={expired.payment_mode}
-        theme={theme}
       />
     );
   }
 
-  return project ? <PortalView project={project} theme={theme} /> : null;
+  return project ? <PortalView project={project} /> : null;
 }
