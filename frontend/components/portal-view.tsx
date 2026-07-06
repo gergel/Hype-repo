@@ -24,12 +24,10 @@ export function PortalView({
   project,
   expiredContactEmail,
   expiredPaymentMode,
-  theme,
 }: {
   project: PublicProject;
   expiredContactEmail?: string;
   expiredPaymentMode?: string;
-  theme?: { dark: boolean; setTheme: (d: boolean) => void; mounted: boolean };
 }) {
   const [active, setActive] = useState<Video | null>(null);
   const [lightbox, setLightbox] = useState<{ images: ImageType[]; index: number } | null>(null);
@@ -78,13 +76,8 @@ export function PortalView({
   const remainingDays = isExpired ? null : daysUntilExpiry();
   const isPaid = project.payment_mode === "paid";
 
-  return (
+return (
     <main className="relative">
-      {theme?.mounted && !active && !lightbox && (
-        <div className="fixed right-4 top-4 z-[90]">
-          <ThemeToggle dark={theme.dark} onChange={theme.setTheme} />
-        </div>
-      )}
       {/* ---------- Hero ---------- */}
       <section className="relative flex min-h-[88vh] items-end overflow-hidden">
         <div className="absolute inset-0">
