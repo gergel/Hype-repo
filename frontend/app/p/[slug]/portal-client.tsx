@@ -4,7 +4,7 @@ import { useParams, useSearchParams } from "next/navigation";
 import { getPublicProject, getByShare, PublicProject } from "@/lib/api";
 import { PortalView } from "@/components/portal-view";
 import { PasswordGate } from "@/components/password-gate";
-import { usePortalTheme } from "@/components/theme-toggle";
+
 
 export default function PortalClient() {
   return (
