@@ -12,6 +12,9 @@ class Settings(BaseSettings):
     ADMIN_PASSWORD: str = "Hype2015"
     FRONTEND_URL: str = "http://localhost:3000"
 
+    # Számlázz.hu
+    SZAMLAZZ_AGENT_KEY: str = ""
+
     # Database
     DATABASE_URL: str = "postgresql://postgres:postgres@localhost:5432/hype"
 
