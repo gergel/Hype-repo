@@ -74,11 +74,12 @@ export function PortalView({
   const folders = project.folders || [];
   const looseVideos = project.videos.filter((v) => !v.folder_id);
   const foldersWithVideos = folders
-    .map((f) => ({
-      folder: f,
-      videos: project.videos.filter((v) => v.folder_id === f.id),
-    }))
-    .filter((g) => g.videos.length > 0);
+      .map((f) => ({
+        folder: f,
+        videos: project.videos.filter((v) => v.folder_id === f.id),
+      }))
+      .filter((g) => g.videos.length > 0)
+      .sort((a, b) => b.folder.name.localeCompare(a.folder.name, "hu"));
 
   const allImages = project.images || [];
   const looseImages = allImages.filter((i) => !i.folder_id);
@@ -87,7 +88,8 @@ export function PortalView({
       folder: f,
       images: allImages.filter((i) => i.folder_id === f.id),
     }))
-    .filter((g) => g.images.length > 0);
+    .filter((g) => g.images.length > 0)
+    .sort((a, b) => b.folder.name.localeCompare(a.folder.name, "hu"));
 
   function daysUntilExpiry(): number | null {
     if (!project.expires_at) return null;
