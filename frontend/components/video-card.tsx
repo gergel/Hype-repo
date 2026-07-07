@@ -4,14 +4,17 @@ import { motion } from "framer-motion";
 import { Play, Download, Loader2 } from "lucide-react";
 import { Video } from "@/lib/api";
 import { formatDuration, downloadVideo } from "@/lib/utils";
+
 export function VideoCard({
   video,
   index,
   onPlay,
+  isNew = false,
 }: {
   video: Video;
   index: number;
   onPlay: (v: Video) => void;
+  isNew?: boolean;
 }) {
   const [preparing, setPreparing] = useState(false);
   async function handleDownload(e: React.MouseEvent) {
@@ -49,6 +52,12 @@ export function VideoCard({
           <div className="h-full w-full bg-ink-soft" />
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent opacity-80 transition-opacity group-hover:opacity-95" />
+        {/* ÚJ címke */}
+        {isNew && (
+          <span className="absolute left-3 top-3 rounded-full bg-ember px-2.5 py-1 font-mono text-[11px] font-semibold uppercase tracking-eyebrow text-white shadow-lg">
+            Új
+          </span>
+        )}
         {/* Play affordance */}
         <span className="absolute left-1/2 top-1/2 flex h-16 w-16 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-white/30 bg-black/30 backdrop-blur-md transition-all duration-500 group-hover:scale-110 group-hover:border-white/60">
           <Play className="ml-0.5 h-6 w-6 fill-bone text-bone" />
