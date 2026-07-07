@@ -253,7 +253,13 @@ return (
             {looseVideos.length > 0 && (
               <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
                 {looseVideos.map((v, i) => (
-                  <VideoCard key={v.id} video={v} index={i} onPlay={setActive} />
+                  <VideoCard
+                    key={v.id}
+                    video={v}
+                    index={i}
+                    onPlay={markVideoSeen}
+                    isNew={!seenVideos.has(v.id)}
+                  />
                 ))}
               </div>
             )}
@@ -525,6 +531,30 @@ function ImageGrid({
     </div>
   );
 }
+
+const [seenVideos, setSeenVideos] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(`hype_seen_videos_${project.slug}`);
+      if (raw) setSeenVideos(new Set(JSON.parse(raw)));
+    } catch {}
+  }, [project.slug]);
+
+  function markVideoSeen(v: Video) {
+    setActive(v); // a meglévő megnyitás
+    if (!seenVideos.has(v.id)) {
+      const next = new Set(seenVideos);
+      next.add(v.id);
+      setSeenVideos(next);
+      try {
+        localStorage.setItem(
+          `hype_seen_videos_${project.slug}`,
+          JSON.stringify(Array.from(next))
+        );
+      } catch {}
+    }
+  }
 
 function ImageLightbox({
   images,
