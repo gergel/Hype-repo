@@ -52,6 +52,7 @@ export default function AdminProjectPage() {
   const [currentFolder, setCurrentFolder] = useState<string | null>(null);
   const [selectedVideos, setSelectedVideos] = useState<Set<string>>(new Set());
   const [selectedImages, setSelectedImages] = useState<Set<string>>(new Set());
+  const [moveMenuOpen, setMoveMenuOpen] = useState(false);
   const [form, setForm] = useState({
     title: "",
     client_name: "",
@@ -500,6 +501,69 @@ function makeShare() {
     setSelectedImages(new Set());
   }
 
+  // Összes látható kijelölése (az aktuális nézetben lévő videók + képek)
+  function selectAllVisible() {
+    setSelectedVideos(new Set(visibleVideos.map((v) => v.id)));
+    setSelectedImages(new Set(visibleImages.map((i) => i.id)));
+  }
+
+  // Shift+klikk tartomány-kijelöléshez az utolsó kattintott index
+  const lastVideoIndex = useRef<number | null>(null);
+  const lastImageIndex = useRef<number | null>(null);
+
+  // Videó kijelölése kattintással; shift esetén tartomány az előzőtől
+  function clickVideo(index: number, shift: boolean) {
+    if (shift && lastVideoIndex.current !== null) {
+      const start = Math.min(lastVideoIndex.current, index);
+      const end = Math.max(lastVideoIndex.current, index);
+      setSelectedVideos((prev) => {
+        const next = new Set(prev);
+        for (let i = start; i <= end; i++) {
+          const v = visibleVideos[i];
+          if (v) next.add(v.id);
+        }
+        return next;
+      });
+    } else {
+      toggleVideo(visibleVideos[index].id);
+    }
+    lastVideoIndex.current = index;
+  }
+
+  // Kép kijelölése kattintással; shift esetén tartomány az előzőtől
+  function clickImage(index: number, shift: boolean) {
+    if (shift && lastImageIndex.current !== null) {
+      const start = Math.min(lastImageIndex.current, index);
+      const end = Math.max(lastImageIndex.current, index);
+      setSelectedImages((prev) => {
+        const next = new Set(prev);
+        for (let i = start; i <= end; i++) {
+          const img = visibleImages[i];
+          if (img) next.add(img.id);
+        }
+        return next;
+      });
+    } else {
+      toggleImage(visibleImages[index].id);
+    }
+    lastImageIndex.current = index;
+  }
+
+  // Kijelöltek áthelyezése egy mappába (vagy ki a mappából, ha null)
+  async function moveSelectedToFolder(folderId: string | null) {
+    const vIds = Array.from(selectedVideos);
+    const iIds = Array.from(selectedImages);
+    for (const vid of vIds) {
+      await setVideoFolder(vid, folderId).catch(() => {});
+    }
+    for (const iid of iIds) {
+      await setImageFolder(iid, folderId).catch(() => {});
+    }
+    clearSelection();
+    setMoveMenuOpen(false);
+    refresh();
+  }
+
   function onDeleteSelected() {
     const vIds = Array.from(selectedVideos);
     const iIds = Array.from(selectedImages);
@@ -808,23 +872,77 @@ function makeShare() {
           </label>
 
           {/* Kijelölés sáv */}
-          {selectedCount > 0 && (
-            <div className="mt-4 flex items-center justify-between rounded-xl border border-ember/40 bg-ember/10 px-3 py-2.5">
-              <span className="text-sm text-bone">{selectedCount} kijelölve</span>
-              <div className="flex items-center gap-3">
+          {(selectedCount > 0 || visibleVideos.length + visibleImages.length > 0) && (
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-ember/40 bg-ember/10 px-3 py-2.5">
+              <span className="text-sm text-bone">
+                {selectedCount > 0 ? `${selectedCount} kijelölve` : "Kijelölés"}
+              </span>
+              <div className="flex flex-wrap items-center gap-2">
                 <button
-                  onClick={clearSelection}
-                  className="text-xs text-mist transition hover:text-bone"
+                  onClick={selectAllVisible}
+                  className="rounded-full border border-ink-line px-3 py-1.5 text-xs text-bone transition hover:border-ember/50"
                 >
-                  Mégse
+                  Összes kijelölése
                 </button>
-                <button
-                  onClick={onDeleteSelected}
-                  className="flex items-center gap-2 rounded-full border border-ember/50 px-3 py-1.5 text-xs text-ember transition hover:bg-ember/20"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                  Kijelöltek törlése
-                </button>
+
+                {selectedCount > 0 && (
+                  <>
+                    {/* Áthelyezés mappába (legördülő) */}
+                    <div className="relative">
+                      <button
+                        onClick={() => setMoveMenuOpen((o) => !o)}
+                        className="flex items-center gap-2 rounded-full border border-ink-line px-3 py-1.5 text-xs text-bone transition hover:border-ember/50"
+                      >
+                        <FolderIcon className="h-3.5 w-3.5" />
+                        Áthelyezés mappába
+                      </button>
+                      {moveMenuOpen && (
+                        <div className="absolute right-0 z-30 mt-1 w-56 overflow-hidden rounded-xl border border-ink-line bg-ink-card shadow-xl">
+                          <div className="max-h-64 overflow-y-auto py-1">
+                            {folders.length === 0 && (
+                              <p className="px-3 py-2 text-xs text-mist">
+                                Nincs mappa. Előbb hozz létre egyet.
+                              </p>
+                            )}
+                            {folders.map((f) => (
+                              <button
+                                key={f.id}
+                                onClick={() => moveSelectedToFolder(f.id)}
+                                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-bone transition hover:bg-white/[0.05]"
+                              >
+                                <FolderIcon className="h-4 w-4 shrink-0 text-ember" />
+                                <span className="truncate">{f.name}</span>
+                              </button>
+                            ))}
+                            {currentFolder && (
+                              <button
+                                onClick={() => moveSelectedToFolder(null)}
+                                className="flex w-full items-center gap-2 border-t border-ink-line px-3 py-2 text-left text-sm text-mist transition hover:bg-white/[0.05] hover:text-bone"
+                              >
+                                <ArrowLeft className="h-4 w-4 shrink-0" />
+                                Kivétel a mappából
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    <button
+                      onClick={clearSelection}
+                      className="text-xs text-mist transition hover:text-bone"
+                    >
+                      Mégse
+                    </button>
+                    <button
+                      onClick={onDeleteSelected}
+                      className="flex items-center gap-2 rounded-full border border-ember/50 px-3 py-1.5 text-xs text-ember transition hover:bg-ember/20"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                      Kijelöltek törlése
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           )}
@@ -949,7 +1067,7 @@ function makeShare() {
 
           {/* Videók az aktuális nézetben */}
           <ul className="mt-2 space-y-2">
-            {visibleVideos.map((v) => {
+            {visibleVideos.map((v, vIndex) => {
               const isSelected = selectedVideos.has(v.id);
               return (
                 <li
@@ -965,8 +1083,11 @@ function makeShare() {
                   <input
                     type="checkbox"
                     checked={isSelected}
-                    onChange={() => toggleVideo(v.id)}
-                    onClick={(e) => e.stopPropagation()}
+                    onChange={() => {}}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      clickVideo(vIndex, (e as React.MouseEvent).shiftKey);
+                    }}
                     className="h-4 w-4 shrink-0 cursor-pointer accent-ember"
                   />
                   <GripVertical className="hidden h-4 w-4 shrink-0 cursor-grab text-mist sm:block" />
@@ -1038,13 +1159,13 @@ function makeShare() {
                 Képek ({visibleImages.length})
               </h3>
               <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
-                {visibleImages.map((img) => (
+                {visibleImages.map((img, imgIndex) => (
                   <LazyImageCell
                     key={img.id}
                     img={img}
                     selected={selectedImages.has(img.id)}
                     inFolder={!!currentFolder}
-                    onToggle={() => toggleImage(img.id)}
+                    onToggle={(shift) => clickImage(imgIndex, shift)}
                     onRemoveFromFolder={() => onRemoveImageFromFolder(img.id)}
                     onDelete={() => onDeleteImage(img.id)}
                   />
@@ -1094,7 +1215,7 @@ function LazyImageCell({
   img: ImageType;
   selected: boolean;
   inFolder: boolean;
-  onToggle: () => void;
+  onToggle: (shift: boolean) => void;
   onRemoveFromFolder: () => void;
   onDelete: () => void;
 }) {
@@ -1138,7 +1259,11 @@ function LazyImageCell({
             <input
               type="checkbox"
               checked={selected}
-              onChange={onToggle}
+              onChange={() => {}}
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggle((e as React.MouseEvent).shiftKey);
+              }}
               className="h-4 w-4 cursor-pointer accent-ember"
             />
           </label>
