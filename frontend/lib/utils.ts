@@ -168,11 +168,13 @@ export async function downloadImage(imageId: string, title?: string) {
 // Több kép: telón egyenként galériába (Web Share), gépen egy ZIP (gyors)
 export async function downloadImagesAll(
   images: { id: string; title: string }[],
-  onProgress?: (done: number, total: number) => void
+  onProgress?: (done: number, total: number) => void,
+  shouldCancel?: () => boolean
 ) {
   if (isMobileDevice()) {
     let done = 0;
     for (const img of images) {
+      if (shouldCancel && shouldCancel()) return;
       await downloadImage(img.id, img.title);
       done++;
       if (onProgress) onProgress(done, images.length);
@@ -190,6 +192,7 @@ export async function downloadImagesAll(
 
   async function worker() {
     while (cursor < images.length) {
+      if (shouldCancel && shouldCancel()) return;
       const i = cursor++;
       const img = images[i];
       try {
@@ -213,6 +216,8 @@ export async function downloadImagesAll(
   );
   await Promise.all(workers);
 
+  if (shouldCancel && shouldCancel()) return;
+
   const content = await zip.generateAsync({ type: "blob", compression: "STORE" });
   const blobUrl = URL.createObjectURL(content);
   const a = document.createElement("a");
@@ -233,7 +238,8 @@ export async function downloadFolderZip(
   folderName: string,
   videos: { id: string; title: string }[],
   images: { id: string; title: string }[],
-  onProgress?: (done: number, total: number) => void
+  onProgress?: (done: number, total: number) => void,
+  shouldCancel?: () => boolean
 ) {
   const total = videos.length + images.length;
   let done = 0;
@@ -242,11 +248,13 @@ export async function downloadFolderZip(
   // ---- Mobil: egyenként (galériába), nem ZIP ----
   if (isMobileDevice()) {
     for (const v of videos) {
+      if (shouldCancel && shouldCancel()) return;
       await downloadVideo(v.id, "", `${v.title}.mp4`, 0);
       done++;
       if (onProgress) onProgress(done, total);
     }
     for (const img of images) {
+      if (shouldCancel && shouldCancel()) return;
       await downloadImage(img.id, img.title);
       done++;
       if (onProgress) onProgress(done, total);
@@ -262,6 +270,7 @@ export async function downloadFolderZip(
   let imgCursor = 0;
   async function imgWorker() {
     while (imgCursor < images.length) {
+      if (shouldCancel && shouldCancel()) return;
       const i = imgCursor++;
       const img = images[i];
       try {
@@ -284,6 +293,7 @@ export async function downloadFolderZip(
 
   // Videók (egyesével, mert nagyok — párhuzamosan elfogyna a memória)
   for (let i = 0; i < videos.length; i++) {
+    if (shouldCancel && shouldCancel()) return;
     const v = videos[i];
     try {
       const url = await getVideoDownloadUrl(v.id);
@@ -297,6 +307,8 @@ export async function downloadFolderZip(
     done++;
     if (onProgress) onProgress(done, total);
   }
+
+  if (shouldCancel && shouldCancel()) return;
 
   const content = await zip.generateAsync({ type: "blob", compression: "STORE" });
   const blobUrl = URL.createObjectURL(content);
