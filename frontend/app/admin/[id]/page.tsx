@@ -53,6 +53,10 @@ export default function AdminProjectPage() {
   const [selectedVideos, setSelectedVideos] = useState<Set<string>>(new Set());
   const [selectedImages, setSelectedImages] = useState<Set<string>>(new Set());
   const [moveMenuOpen, setMoveMenuOpen] = useState(false);
+  const [moving, setMoving] = useState(false);
+  const [moveProgress, setMoveProgress] = useState<{ done: number; total: number } | null>(
+    null
+  );
   const [form, setForm] = useState({
     title: "",
     client_name: "",
@@ -550,17 +554,56 @@ function makeShare() {
   }
 
   // Kijelöltek áthelyezése egy mappába (vagy ki a mappából, ha null)
+  // Párhuzamos küldés + optimista frissítés + folyamatjelző.
   async function moveSelectedToFolder(folderId: string | null) {
+    if (moving) return;
     const vIds = Array.from(selectedVideos);
     const iIds = Array.from(selectedImages);
-    for (const vid of vIds) {
-      await setVideoFolder(vid, folderId).catch(() => {});
-    }
-    for (const iid of iIds) {
-      await setImageFolder(iid, folderId).catch(() => {});
-    }
-    clearSelection();
+    const total = vIds.length + iIds.length;
+    if (total === 0) return;
+
     setMoveMenuOpen(false);
+    setMoving(true);
+    setMoveProgress({ done: 0, total });
+
+    // Optimista frissítés: a nézetben azonnal áthelyezzük az elemeket
+    setVideos((prev) =>
+      prev.map((v) => (selectedVideos.has(v.id) ? { ...v, folder_id: folderId } : v))
+    );
+    setImages((prev) =>
+      prev.map((i) => (selectedImages.has(i.id) ? { ...i, folder_id: folderId } : i))
+    );
+    clearSelection();
+
+    // Párhuzamos, kötegelt küldés (egyszerre 6)
+    const CONCURRENCY = 6;
+    let done = 0;
+    const tasks: (() => Promise<void>)[] = [
+      ...vIds.map((vid) => async () => {
+        await setVideoFolder(vid, folderId).catch(() => {});
+        done++;
+        setMoveProgress({ done, total });
+      }),
+      ...iIds.map((iid) => async () => {
+        await setImageFolder(iid, folderId).catch(() => {});
+        done++;
+        setMoveProgress({ done, total });
+      }),
+    ];
+
+    let cursor = 0;
+    async function worker() {
+      while (cursor < tasks.length) {
+        const t = tasks[cursor++];
+        await t();
+      }
+    }
+    await Promise.all(
+      Array.from({ length: Math.min(CONCURRENCY, tasks.length) }, () => worker())
+    );
+
+    setMoving(false);
+    setMoveProgress(null);
     refresh();
   }
 
@@ -944,6 +987,14 @@ function makeShare() {
                   </>
                 )}
               </div>
+            </div>
+          )}
+
+          {moveProgress && (
+            <div className="mt-4 rounded-xl border border-ember/40 bg-ember/10 px-3 py-2.5">
+              <span className="text-sm text-bone">
+                Áthelyezés: {moveProgress.done} / {moveProgress.total}
+              </span>
             </div>
           )}
 
