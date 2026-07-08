@@ -752,14 +752,21 @@ function DownloadAllButton({
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<string>("");
   const startedAt = useRef<number>(0);
+  const abortRef = useRef<AbortController | null>(null);
 
-  async function downloadAll() {
-    if (busy) return;
+  async function handleClick() {
+    if (busy) {
+      abortRef.current?.abort();
+      return;
+    }
+    const controller = new AbortController();
+    abortRef.current = controller;
     setBusy(true);
     try {
       // 1) Videók egyenként
       const playable = videos.filter((v) => v.mp4_url);
       for (let i = 0; i < playable.length; i++) {
+        if (controller.signal.aborted) return;
         const v = playable[i];
         setStatus(`Videó ${i + 1} / ${playable.length}`);
         await downloadVideo(v.id, v.mp4_url, `${v.title}.mp4`, v.size_bytes);
@@ -767,7 +774,7 @@ function DownloadAllButton({
       }
 
       // 2) Képek ZIP-be, haladásjelzéssel
-      if (images.length > 0) {
+      if (images.length > 0 && !controller.signal.aborted) {
         startedAt.current = Date.now();
         setStatus(`Fotók 0 / ${images.length}`);
         await downloadImagesAll(
@@ -782,20 +789,22 @@ function DownloadAllButton({
             const timeStr =
               remaining < 60 ? `~${remaining} mp` : `~${Math.ceil(remaining / 60)} perc`;
             setStatus(`Fotók ${done} / ${total} · ${timeStr}`);
-          }
+          },
+          controller.signal
         );
       }
     } finally {
       setBusy(false);
       setStatus("");
+      abortRef.current = null;
     }
   }
 
   const total = videos.length + images.length;
   return (
-    <Button variant="primary" size="lg" onClick={downloadAll} disabled={!total || busy}>
-      {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-      {busy ? status || "Előkészítés…" : "Összes letöltése"}
+    <Button variant="primary" size="lg" onClick={handleClick} disabled={!total}>
+      {busy ? <X className="h-4 w-4" /> : <Download className="h-4 w-4" />}
+      {busy ? `${status || "Előkészítés…"} · Mégse` : "Összes letöltése"}
     </Button>
   );
 }
@@ -812,12 +821,20 @@ function FolderDownloadButton({
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const startedAt = useRef<number>(0);
+  const abortRef = useRef<AbortController | null>(null);
 
   const total = videos.length + images.length;
 
-  async function handleDownload(e: React.MouseEvent) {
+  async function handleClick(e: React.MouseEvent) {
     e.stopPropagation();
-    if (busy || total === 0) return;
+    // Ha épp fut, ez a kattintás a Mégse — azonnal megszakít
+    if (busy) {
+      abortRef.current?.abort();
+      return;
+    }
+    if (total === 0) return;
+    const controller = new AbortController();
+    abortRef.current = controller;
     setBusy(true);
     setProgress({ done: 0, total });
     startedAt.current = Date.now();
@@ -826,11 +843,13 @@ function FolderDownloadButton({
         folderName,
         videos.map((v) => ({ id: v.id, title: v.title })),
         images.map((i) => ({ id: i.id, title: i.title })),
-        (done, t) => setProgress({ done, total: t })
+        (done, t) => setProgress({ done, total: t }),
+        controller.signal
       );
     } finally {
       setBusy(false);
       setProgress(null);
+      abortRef.current = null;
     }
   }
 
@@ -847,12 +866,12 @@ function FolderDownloadButton({
 
   return (
     <button
-      onClick={handleDownload}
-      disabled={busy || total === 0}
+      onClick={handleClick}
+      disabled={total === 0}
       className="flex shrink-0 items-center gap-2 whitespace-nowrap rounded-full border border-ink-line px-3.5 py-2 text-xs font-medium text-bone transition hover:border-ember/60 disabled:opacity-60 sm:px-4 sm:text-sm"
     >
-      {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-      {busy ? progressLabel() : "Mappa letöltése"}
+      {busy ? <X className="h-4 w-4" /> : <Download className="h-4 w-4" />}
+      {busy ? `${progressLabel()} · Mégse` : "Mappa letöltése"}
     </button>
   );
 }
@@ -867,20 +886,28 @@ function ImagesDownloadButton({
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const startedAt = useRef<number>(0);
+  const abortRef = useRef<AbortController | null>(null);
 
-  async function handleDownload() {
-    if (busy) return;
+  async function handleClick() {
+    if (busy) {
+      abortRef.current?.abort();
+      return;
+    }
+    const controller = new AbortController();
+    abortRef.current = controller;
     setBusy(true);
     setProgress({ done: 0, total: images.length });
     startedAt.current = Date.now();
     try {
       await downloadImagesAll(
         images.map((i) => ({ id: i.id, title: i.title })),
-        (done, total) => setProgress({ done, total })
+        (done, total) => setProgress({ done, total }),
+        controller.signal
       );
     } finally {
       setBusy(false);
       setProgress(null);
+      abortRef.current = null;
     }
   }
 
@@ -897,12 +924,11 @@ function ImagesDownloadButton({
 
   return (
     <button
-      onClick={handleDownload}
-      disabled={busy}
+      onClick={handleClick}
       className="flex shrink-0 items-center gap-2 whitespace-nowrap rounded-full bg-bone px-5 py-2.5 text-sm font-medium text-ink transition hover:bg-white disabled:opacity-60"
     >
-      {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-      {busy ? progressLabel() : label}
+      {busy ? <X className="h-4 w-4" /> : <Download className="h-4 w-4" />}
+      {busy ? `${progressLabel()} · Mégse` : label}
     </button>
   );
 }
