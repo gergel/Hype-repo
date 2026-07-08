@@ -223,3 +223,88 @@ export async function downloadImagesAll(
   a.remove();
   setTimeout(() => URL.revokeObjectURL(blobUrl), 2000);
 }
+
+
+// Egy mappa teljes tartalma (videók + képek) EGY ZIP-be.
+// Gépen: minden a ZIP-be (STORE, tömörítés nélkül). Nagy videóknál lassú/memóriaigényes lehet.
+// Mobilon: a ZIP-et nem erőltetjük — egyenként töltjük (galériába), mert a mobil böngésző
+// nem bír nagy ZIP-et memóriában összerakni.
+export async function downloadFolderZip(
+  folderName: string,
+  videos: { id: string; title: string }[],
+  images: { id: string; title: string }[],
+  onProgress?: (done: number, total: number) => void
+) {
+  const total = videos.length + images.length;
+  let done = 0;
+  const safeFolder = (folderName || "mappa").replace(/[^\w.-]+/g, "_");
+
+  // ---- Mobil: egyenként (galériába), nem ZIP ----
+  if (isMobileDevice()) {
+    for (const v of videos) {
+      await downloadVideo(v.id, "", `${v.title}.mp4`, 0);
+      done++;
+      if (onProgress) onProgress(done, total);
+    }
+    for (const img of images) {
+      await downloadImage(img.id, img.title);
+      done++;
+      if (onProgress) onProgress(done, total);
+    }
+    return;
+  }
+
+  // ---- Gép: minden egy ZIP-be ----
+  const zip = new JSZip();
+
+  // Képek (párhuzamosan)
+  const IMG_CONCURRENCY = 5;
+  let imgCursor = 0;
+  async function imgWorker() {
+    while (imgCursor < images.length) {
+      const i = imgCursor++;
+      const img = images[i];
+      try {
+        const url = await getImageDownloadUrl(img.id);
+        const res = await fetch(url, { mode: "cors" });
+        const blob = await res.blob();
+        const ext = (blob.type.split("/")[1] || "jpg").split("+")[0];
+        const safe = (img.title || `kep-${i + 1}`).replace(/[^\w.-]+/g, "_");
+        zip.file(`${safe}.${ext}`, blob, { compression: "STORE" });
+      } catch {
+        // hibás kép kimarad
+      }
+      done++;
+      if (onProgress) onProgress(done, total);
+    }
+  }
+  await Promise.all(
+    Array.from({ length: Math.min(IMG_CONCURRENCY, images.length) }, () => imgWorker())
+  );
+
+  // Videók (egyesével, mert nagyok — párhuzamosan elfogyna a memória)
+  for (let i = 0; i < videos.length; i++) {
+    const v = videos[i];
+    try {
+      const url = await getVideoDownloadUrl(v.id);
+      const res = await fetch(url, { mode: "cors" });
+      const blob = await res.blob();
+      const safe = (v.title || `video-${i + 1}`).replace(/[^\w.-]+/g, "_");
+      zip.file(`${safe}.mp4`, blob, { compression: "STORE" });
+    } catch {
+      // hibás videó kimarad
+    }
+    done++;
+    if (onProgress) onProgress(done, total);
+  }
+
+  const content = await zip.generateAsync({ type: "blob", compression: "STORE" });
+  const blobUrl = URL.createObjectURL(content);
+  const a = document.createElement("a");
+  a.href = blobUrl;
+  a.download = `${safeFolder}.zip`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(blobUrl), 2000);
+}
