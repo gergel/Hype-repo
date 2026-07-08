@@ -15,7 +15,7 @@ import { PublicProject, Video, Image as ImageType, startPayment } from "@/lib/ap
 import { Button } from "@/components/ui/button";
 import { VideoCard } from "@/components/video-card";
 import { VideoPlayer } from "@/components/video-player";
-import { downloadVideo, downloadImage, downloadImagesAll } from "@/lib/utils";
+import { downloadVideo, downloadImage, downloadImagesAll, downloadFolderZip } from "@/lib/utils";
 
 
 const CONTENTBEE_ACCENT = "rgb(243, 199, 68)";
@@ -296,6 +296,7 @@ return (
                 key={folder.id}
                 name={folder.name}
                 videos={videos}
+                folderImages={allImages.filter((i) => i.folder_id === folder.id)}
                 onPlay={setActive}
                 accent={accent}
               />
@@ -328,6 +329,7 @@ return (
                 key={folder.id}
                 name={folder.name}
                 images={images}
+                folderVideos={project.videos.filter((v) => v.folder_id === folder.id)}
                 onOpen={(imgs, idx) => setLightbox({ images: imgs, index: idx })}
                 accent={accent}
               />
@@ -422,11 +424,13 @@ return (
 function FolderSection({
   name,
   videos,
+  folderImages,
   onPlay,
   accent,
 }: {
   name: string;
   videos: Video[];
+  folderImages: ImageType[];
   onPlay: (v: Video) => void;
   accent?: string;
 }) {
@@ -434,25 +438,33 @@ function FolderSection({
 
   return (
     <div>
-      <button
-        onClick={() => setOpen((o) => !o)}
-        className="mb-6 flex w-full items-center justify-between border-b border-ink-line pb-3 text-left transition hover:border-ember/40"
-      >
-        <h3
-          className="font-display text-xl text-bone sm:text-2xl"
-          style={accent ? { color: accent } : undefined}
+      <div className="mb-6 flex items-center justify-between gap-3 border-b border-ink-line pb-3">
+        <button
+          onClick={() => setOpen((o) => !o)}
+          className="flex min-w-0 flex-1 items-center justify-between gap-3 text-left transition hover:opacity-80"
         >
-          {name}
-        </h3>
-        <span className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-eyebrow text-mist">
-          {videos.length} videó
-          <ChevronDown
-            className={`h-4 w-4 transition-transform duration-300 ${
-              open ? "rotate-180" : ""
-            }`}
-          />
-        </span>
-      </button>
+          <h3
+            className="truncate font-display text-xl text-bone sm:text-2xl"
+            style={accent ? { color: accent } : undefined}
+          >
+            {name}
+          </h3>
+          <span className="flex shrink-0 items-center gap-2 font-mono text-[11px] uppercase tracking-eyebrow text-mist">
+            {videos.length} videó
+            {folderImages.length > 0 ? ` · ${folderImages.length} fotó` : ""}
+            <ChevronDown
+              className={`h-4 w-4 transition-transform duration-300 ${
+                open ? "rotate-180" : ""
+              }`}
+            />
+          </span>
+        </button>
+        <FolderDownloadButton
+          folderName={name}
+          videos={videos}
+          images={folderImages}
+        />
+      </div>
 
       <AnimatePresence initial={false}>
         {open && (
@@ -478,37 +490,47 @@ function FolderSection({
 function ImageFolderSection({
   name,
   images,
+  folderVideos,
   onOpen,
   accent,
 }: {
   name: string;
   images: ImageType[];
+  folderVideos: Video[];
   onOpen: (images: ImageType[], index: number) => void;
   accent?: string;
 }) {
   const [open, setOpen] = useState(false);
+  // Ha a mappában van videó is, akkor a videó-szekció fejlécében már van
+  // letöltő gomb az EGÉSZ mappára — itt nem duplázzuk.
+  const showDownload = folderVideos.length === 0;
 
   return (
     <div>
-      <button
-        onClick={() => setOpen((o) => !o)}
-        className="mb-6 flex w-full items-center justify-between border-b border-ink-line pb-3 text-left transition hover:border-ember/40"
-      >
-        <h3
-          className="font-display text-xl text-bone sm:text-2xl"
-          style={accent ? { color: accent } : undefined}
+      <div className="mb-6 flex items-center justify-between gap-3 border-b border-ink-line pb-3">
+        <button
+          onClick={() => setOpen((o) => !o)}
+          className="flex min-w-0 flex-1 items-center justify-between gap-3 text-left transition hover:opacity-80"
         >
-          {name}
-        </h3>
-        <span className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-eyebrow text-mist">
-          {images.length} fotó
-          <ChevronDown
-            className={`h-4 w-4 transition-transform duration-300 ${
-              open ? "rotate-180" : ""
-            }`}
-          />
-        </span>
-      </button>
+          <h3
+            className="truncate font-display text-xl text-bone sm:text-2xl"
+            style={accent ? { color: accent } : undefined}
+          >
+            {name}
+          </h3>
+          <span className="flex shrink-0 items-center gap-2 font-mono text-[11px] uppercase tracking-eyebrow text-mist">
+            {images.length} fotó
+            <ChevronDown
+              className={`h-4 w-4 transition-transform duration-300 ${
+                open ? "rotate-180" : ""
+              }`}
+            />
+          </span>
+        </button>
+        {showDownload && (
+          <FolderDownloadButton folderName={name} videos={[]} images={images} />
+        )}
+      </div>
 
       <AnimatePresence initial={false}>
         {open && (
@@ -775,6 +797,63 @@ function DownloadAllButton({
       {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
       {busy ? status || "Előkészítés…" : "Összes letöltése"}
     </Button>
+  );
+}
+
+function FolderDownloadButton({
+  folderName,
+  videos,
+  images,
+}: {
+  folderName: string;
+  videos: Video[];
+  images: ImageType[];
+}) {
+  const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
+  const startedAt = useRef<number>(0);
+
+  const total = videos.length + images.length;
+
+  async function handleDownload(e: React.MouseEvent) {
+    e.stopPropagation();
+    if (busy || total === 0) return;
+    setBusy(true);
+    setProgress({ done: 0, total });
+    startedAt.current = Date.now();
+    try {
+      await downloadFolderZip(
+        folderName,
+        videos.map((v) => ({ id: v.id, title: v.title })),
+        images.map((i) => ({ id: i.id, title: i.title })),
+        (done, t) => setProgress({ done, total: t })
+      );
+    } finally {
+      setBusy(false);
+      setProgress(null);
+    }
+  }
+
+  function progressLabel() {
+    if (!progress) return "Előkészítés…";
+    const { done, total: t } = progress;
+    if (done === 0) return `0 / ${t}`;
+    const elapsed = (Date.now() - startedAt.current) / 1000;
+    const remaining = Math.round((elapsed / done) * (t - done));
+    const timeStr =
+      remaining < 60 ? `~${remaining} mp` : `~${Math.ceil(remaining / 60)} perc`;
+    return `${done} / ${t} · ${timeStr}`;
+  }
+
+  return (
+    <button
+      onClick={handleDownload}
+      disabled={busy || total === 0}
+      className="flex shrink-0 items-center gap-2 whitespace-nowrap rounded-full border border-ink-line px-3.5 py-2 text-xs font-medium text-bone transition hover:border-ember/60 disabled:opacity-60 sm:px-4 sm:text-sm"
+    >
+      {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+      {busy ? progressLabel() : "Mappa letöltése"}
+    </button>
   );
 }
 
