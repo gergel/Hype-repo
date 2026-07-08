@@ -169,12 +169,12 @@ export async function downloadImage(imageId: string, title?: string) {
 export async function downloadImagesAll(
   images: { id: string; title: string }[],
   onProgress?: (done: number, total: number) => void,
-  shouldCancel?: () => boolean
+  signal?: AbortSignal
 ) {
   if (isMobileDevice()) {
     let done = 0;
     for (const img of images) {
-      if (shouldCancel && shouldCancel()) return;
+      if (signal?.aborted) return;
       await downloadImage(img.id, img.title);
       done++;
       if (onProgress) onProgress(done, images.length);
@@ -192,18 +192,18 @@ export async function downloadImagesAll(
 
   async function worker() {
     while (cursor < images.length) {
-      if (shouldCancel && shouldCancel()) return;
+      if (signal?.aborted) return;
       const i = cursor++;
       const img = images[i];
       try {
         const url = await getImageDownloadUrl(img.id);
-        const res = await fetch(url, { mode: "cors" });
+        const res = await fetch(url, { mode: "cors", signal });
         const blob = await res.blob();
         const ext = (blob.type.split("/")[1] || "jpg").split("+")[0];
         const safeTitle = (img.title || `image-${i + 1}`).replace(/[^\w.-]+/g, "_");
         zip.file(`${safeTitle}.${ext}`, blob, { compression: "STORE" });
       } catch {
-        // egy hibás kép kimarad
+        // egy hibás kép vagy megszakítás kimarad
       }
       done++;
       if (onProgress) onProgress(done, total);
@@ -216,7 +216,7 @@ export async function downloadImagesAll(
   );
   await Promise.all(workers);
 
-  if (shouldCancel && shouldCancel()) return;
+  if (signal?.aborted) return;
 
   const content = await zip.generateAsync({ type: "blob", compression: "STORE" });
   const blobUrl = URL.createObjectURL(content);
@@ -239,7 +239,7 @@ export async function downloadFolderZip(
   videos: { id: string; title: string }[],
   images: { id: string; title: string }[],
   onProgress?: (done: number, total: number) => void,
-  shouldCancel?: () => boolean
+  signal?: AbortSignal
 ) {
   const total = videos.length + images.length;
   let done = 0;
@@ -248,13 +248,13 @@ export async function downloadFolderZip(
   // ---- Mobil: egyenként (galériába), nem ZIP ----
   if (isMobileDevice()) {
     for (const v of videos) {
-      if (shouldCancel && shouldCancel()) return;
+      if (signal?.aborted) return;
       await downloadVideo(v.id, "", `${v.title}.mp4`, 0);
       done++;
       if (onProgress) onProgress(done, total);
     }
     for (const img of images) {
-      if (shouldCancel && shouldCancel()) return;
+      if (signal?.aborted) return;
       await downloadImage(img.id, img.title);
       done++;
       if (onProgress) onProgress(done, total);
@@ -270,12 +270,12 @@ export async function downloadFolderZip(
   let imgCursor = 0;
   async function imgWorker() {
     while (imgCursor < images.length) {
-      if (shouldCancel && shouldCancel()) return;
+      if (signal?.aborted) return;
       const i = imgCursor++;
       const img = images[i];
       try {
         const url = await getImageDownloadUrl(img.id);
-        const res = await fetch(url, { mode: "cors" });
+        const res = await fetch(url, { mode: "cors", signal });
         const blob = await res.blob();
         const ext = (blob.type.split("/")[1] || "jpg").split("+")[0];
         const safe = (img.title || `kep-${i + 1}`).replace(/[^\w.-]+/g, "_");
@@ -293,11 +293,11 @@ export async function downloadFolderZip(
 
   // Videók (egyesével, mert nagyok — párhuzamosan elfogyna a memória)
   for (let i = 0; i < videos.length; i++) {
-    if (shouldCancel && shouldCancel()) return;
+    if (signal?.aborted) return;
     const v = videos[i];
     try {
       const url = await getVideoDownloadUrl(v.id);
-      const res = await fetch(url, { mode: "cors" });
+      const res = await fetch(url, { mode: "cors", signal });
       const blob = await res.blob();
       const safe = (v.title || `video-${i + 1}`).replace(/[^\w.-]+/g, "_");
       zip.file(`${safe}.mp4`, blob, { compression: "STORE" });
@@ -308,7 +308,7 @@ export async function downloadFolderZip(
     if (onProgress) onProgress(done, total);
   }
 
-  if (shouldCancel && shouldCancel()) return;
+  if (signal?.aborted) return;
 
   const content = await zip.generateAsync({ type: "blob", compression: "STORE" });
   const blobUrl = URL.createObjectURL(content);
