@@ -752,20 +752,21 @@ function DownloadAllButton({
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<string>("");
   const startedAt = useRef<number>(0);
-  const cancelRef = useRef(false);
+  const abortRef = useRef<AbortController | null>(null);
 
   async function handleClick() {
     if (busy) {
-      cancelRef.current = true;
+      abortRef.current?.abort();
       return;
     }
-    cancelRef.current = false;
+    const controller = new AbortController();
+    abortRef.current = controller;
     setBusy(true);
     try {
       // 1) Videók egyenként
       const playable = videos.filter((v) => v.mp4_url);
       for (let i = 0; i < playable.length; i++) {
-        if (cancelRef.current) return;
+        if (controller.signal.aborted) return;
         const v = playable[i];
         setStatus(`Videó ${i + 1} / ${playable.length}`);
         await downloadVideo(v.id, v.mp4_url, `${v.title}.mp4`, v.size_bytes);
@@ -773,7 +774,7 @@ function DownloadAllButton({
       }
 
       // 2) Képek ZIP-be, haladásjelzéssel
-      if (images.length > 0 && !cancelRef.current) {
+      if (images.length > 0 && !controller.signal.aborted) {
         startedAt.current = Date.now();
         setStatus(`Fotók 0 / ${images.length}`);
         await downloadImagesAll(
@@ -789,13 +790,13 @@ function DownloadAllButton({
               remaining < 60 ? `~${remaining} mp` : `~${Math.ceil(remaining / 60)} perc`;
             setStatus(`Fotók ${done} / ${total} · ${timeStr}`);
           },
-          () => cancelRef.current
+          controller.signal
         );
       }
     } finally {
       setBusy(false);
       setStatus("");
-      cancelRef.current = false;
+      abortRef.current = null;
     }
   }
 
@@ -820,19 +821,20 @@ function FolderDownloadButton({
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const startedAt = useRef<number>(0);
-  const cancelRef = useRef(false);
+  const abortRef = useRef<AbortController | null>(null);
 
   const total = videos.length + images.length;
 
   async function handleClick(e: React.MouseEvent) {
     e.stopPropagation();
-    // Ha épp fut, ez a kattintás a Mégse
+    // Ha épp fut, ez a kattintás a Mégse — azonnal megszakít
     if (busy) {
-      cancelRef.current = true;
+      abortRef.current?.abort();
       return;
     }
     if (total === 0) return;
-    cancelRef.current = false;
+    const controller = new AbortController();
+    abortRef.current = controller;
     setBusy(true);
     setProgress({ done: 0, total });
     startedAt.current = Date.now();
@@ -842,12 +844,12 @@ function FolderDownloadButton({
         videos.map((v) => ({ id: v.id, title: v.title })),
         images.map((i) => ({ id: i.id, title: i.title })),
         (done, t) => setProgress({ done, total: t }),
-        () => cancelRef.current
+        controller.signal
       );
     } finally {
       setBusy(false);
       setProgress(null);
-      cancelRef.current = false;
+      abortRef.current = null;
     }
   }
 
@@ -884,14 +886,15 @@ function ImagesDownloadButton({
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const startedAt = useRef<number>(0);
-  const cancelRef = useRef(false);
+  const abortRef = useRef<AbortController | null>(null);
 
   async function handleClick() {
     if (busy) {
-      cancelRef.current = true;
+      abortRef.current?.abort();
       return;
     }
-    cancelRef.current = false;
+    const controller = new AbortController();
+    abortRef.current = controller;
     setBusy(true);
     setProgress({ done: 0, total: images.length });
     startedAt.current = Date.now();
@@ -899,12 +902,12 @@ function ImagesDownloadButton({
       await downloadImagesAll(
         images.map((i) => ({ id: i.id, title: i.title })),
         (done, total) => setProgress({ done, total }),
-        () => cancelRef.current
+        controller.signal
       );
     } finally {
       setBusy(false);
       setProgress(null);
-      cancelRef.current = false;
+      abortRef.current = null;
     }
   }
 
