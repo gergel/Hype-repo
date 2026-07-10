@@ -438,32 +438,34 @@ function FolderSection({
 
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between gap-3 border-b border-ink-line pb-3">
+      <div className="mb-6 border-b border-ink-line pb-3">
         <button
           onClick={() => setOpen((o) => !o)}
-          className="flex min-w-0 flex-1 items-center justify-between gap-3 text-left transition hover:opacity-80"
+          className="flex w-full items-start gap-3 text-left transition hover:opacity-80"
         >
           <h3
-            className="truncate font-display text-xl text-bone sm:text-2xl"
+            className="min-w-0 flex-1 font-display text-xl text-bone sm:text-2xl"
             style={accent ? { color: accent } : undefined}
           >
             {name}
           </h3>
-          <span className="flex shrink-0 items-center gap-2 font-mono text-[11px] uppercase tracking-eyebrow text-mist">
+          <ChevronDown
+            className={`mt-1.5 h-5 w-5 shrink-0 text-mist transition-transform duration-300 ${
+              open ? "rotate-180" : ""
+            }`}
+          />
+        </button>
+        <div className="mt-2 flex items-center justify-between gap-3">
+          <span className="font-mono text-[11px] uppercase tracking-eyebrow text-mist">
             {videos.length} videó
             {folderImages.length > 0 ? ` · ${folderImages.length} fotó` : ""}
-            <ChevronDown
-              className={`h-4 w-4 transition-transform duration-300 ${
-                open ? "rotate-180" : ""
-              }`}
-            />
           </span>
-        </button>
-        <FolderDownloadButton
-          folderName={name}
-          videos={videos}
-          images={folderImages}
-        />
+          <FolderDownloadButton
+            folderName={name}
+            videos={videos}
+            images={folderImages}
+          />
+        </div>
       </div>
 
       <AnimatePresence initial={false}>
@@ -507,29 +509,31 @@ function ImageFolderSection({
 
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between gap-3 border-b border-ink-line pb-3">
+      <div className="mb-6 border-b border-ink-line pb-3">
         <button
           onClick={() => setOpen((o) => !o)}
-          className="flex min-w-0 flex-1 items-center justify-between gap-3 text-left transition hover:opacity-80"
+          className="flex w-full items-start gap-3 text-left transition hover:opacity-80"
         >
           <h3
-            className="truncate font-display text-xl text-bone sm:text-2xl"
+            className="min-w-0 flex-1 font-display text-xl text-bone sm:text-2xl"
             style={accent ? { color: accent } : undefined}
           >
             {name}
           </h3>
-          <span className="flex shrink-0 items-center gap-2 font-mono text-[11px] uppercase tracking-eyebrow text-mist">
-            {images.length} fotó
-            <ChevronDown
-              className={`h-4 w-4 transition-transform duration-300 ${
-                open ? "rotate-180" : ""
-              }`}
-            />
-          </span>
+          <ChevronDown
+            className={`mt-1.5 h-5 w-5 shrink-0 text-mist transition-transform duration-300 ${
+              open ? "rotate-180" : ""
+            }`}
+          />
         </button>
-        {showDownload && (
-          <FolderDownloadButton folderName={name} videos={[]} images={images} />
-        )}
+        <div className="mt-2 flex items-center justify-between gap-3">
+          <span className="font-mono text-[11px] uppercase tracking-eyebrow text-mist">
+            {images.length} fotó
+          </span>
+          {showDownload && (
+            <FolderDownloadButton folderName={name} videos={[]} images={images} />
+          )}
+        </div>
       </div>
 
       <AnimatePresence initial={false}>
