@@ -312,3 +312,89 @@ export async function downloadFolderZip(
 
   await finalizeZip(zip, `${safeFolder}.zip`);
 }
+
+
+// Teljes projekt EGY ZIP-be, a ZIP-en belül megtartva a mappaszerkezetet.
+// A folder mező adja meg, melyik almappába kerüljön a fájl (null/"" = gyökér).
+export async function downloadEverythingZip(
+  videos: { id: string; title: string; folder?: string | null }[],
+  images: { id: string; title: string; folder?: string | null }[],
+  onProgress?: (done: number, total: number) => void,
+  signal?: AbortSignal
+) {
+  const zip = new JSZip();
+  const total = videos.length + images.length;
+  let done = 0;
+  let added = 0;
+
+  // A ZIP-en belüli útvonal: "MappaNév/fájl" vagy "fájl" (gyökér).
+  // A használt nevek egyediségét is figyeljük, hogy ne írja felül egymást két azonos nevű fájl.
+  const usedNames = new Set<string>();
+  function uniquePath(folder: string | null | undefined, base: string, ext: string): string {
+    const dir = folder ? `${folder.replace(/[^\w.-]+/g, "_")}/` : "";
+    let name = `${dir}${base}.${ext}`;
+    let n = 1;
+    while (usedNames.has(name)) {
+      name = `${dir}${base}-${n}.${ext}`;
+      n++;
+    }
+    usedNames.add(name);
+    return name;
+  }
+
+  // Képek párhuzamosan
+  const IMG_CONCURRENCY = 5;
+  let imgCursor = 0;
+  async function imgWorker() {
+    while (imgCursor < images.length) {
+      if (signal?.aborted) return;
+      const i = imgCursor++;
+      const img = images[i];
+      try {
+        const url = await getImageDownloadUrl(img.id);
+        const res = await fetch(url, { mode: "cors", signal });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const blob = await res.blob();
+        const ext = (blob.type.split("/")[1] || "jpg").split("+")[0];
+        const base = (img.title || `kep-${i + 1}`).replace(/[^\w.-]+/g, "_");
+        zip.file(uniquePath(img.folder, base, ext), blob, { compression: "STORE" });
+        added++;
+      } catch (err) {
+        console.error("[zip] kép kimaradt:", img.id, err);
+      }
+      done++;
+      if (onProgress) onProgress(done, total);
+    }
+  }
+  await Promise.all(
+    Array.from({ length: Math.min(IMG_CONCURRENCY, images.length) }, () => imgWorker())
+  );
+
+  // Videók egyesével (nagyok)
+  for (let i = 0; i < videos.length; i++) {
+    if (signal?.aborted) return;
+    const v = videos[i];
+    try {
+      const url = await getVideoDownloadUrl(v.id);
+      const res = await fetch(url, { mode: "cors", signal });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const blob = await res.blob();
+      const base = (v.title || `video-${i + 1}`).replace(/[^\w.-]+/g, "_");
+      zip.file(uniquePath(v.folder, base, "mp4"), blob, { compression: "STORE" });
+      added++;
+    } catch (err) {
+      console.error("[zip] videó kimaradt:", v.id, err);
+    }
+    done++;
+    if (onProgress) onProgress(done, total);
+  }
+
+  if (signal?.aborted) return;
+
+  if (added === 0) {
+    alert("A letöltés nem sikerült (a fájlok nem elérhetők). Próbáld újra később.");
+    return;
+  }
+
+  await finalizeZip(zip, "projekt.zip");
+}
