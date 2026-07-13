@@ -180,6 +180,7 @@ return (
               className="mt-9 flex flex-wrap items-center gap-3"
             >
               <DownloadAllButton
+                projectName={project.title}
                 videos={project.videos.map((v) => ({
                   id: v.id,
                   title: v.title,
@@ -759,9 +760,11 @@ function ImageLightbox({
 }
 
 function DownloadAllButton({
+  projectName,
   videos,
   images,
 }: {
+  projectName: string;
   videos: { id: string; title: string; folder: string | null }[];
   images: { id: string; title: string; folder: string | null }[];
 }) {
@@ -782,6 +785,7 @@ function DownloadAllButton({
     setStatus("Előkészítés…");
     try {
       await downloadEverythingZip(
+        projectName,
         videos,
         images,
         (done, total) => {
