@@ -218,10 +218,33 @@ export async function downloadImagesAll(
   await finalizeZip(zip, "photos.zip");
 }
 
-// A ZIP legenerálása és letöltése, hibakezeléssel
+// A ZIP legenerálása és letöltése, hibakezeléssel.
+// Mobilon (iOS Safari) a <a download> nem működik, ezért Web Share-rel osztjuk meg,
+// hogy a felhasználó a Fájlokba menthesse. Gépen a natív letöltő.
 async function finalizeZip(zip: JSZip, filename: string) {
   try {
     const content = await zip.generateAsync({ type: "blob", compression: "STORE" });
+
+    // ---- Mobil: Web Share (Fájlokba menthető) ----
+    if (isMobileDevice()) {
+      const file = new File([content], filename, { type: "application/zip" });
+      const nav = navigator as Navigator & {
+        canShare?: (data: { files: File[] }) => boolean;
+        share?: (data: { files: File[]; title?: string }) => Promise<void>;
+      };
+      if (nav.canShare && nav.canShare({ files: [file] }) && nav.share) {
+        try {
+          await nav.share({ files: [file], title: filename });
+          return;
+        } catch (err) {
+          const e = err as { name?: string };
+          if (e && e.name === "AbortError") return; // felhasználó bezárta a megosztást
+          // ha a megosztás nem ment, essünk vissza a blob-letöltésre
+        }
+      }
+    }
+
+    // ---- Gép (vagy mobil tartalék): natív letöltő ----
     const blobUrl = URL.createObjectURL(content);
     const a = document.createElement("a");
     a.href = blobUrl;
