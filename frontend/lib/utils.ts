@@ -171,21 +171,11 @@ export async function downloadImagesAll(
   onProgress?: (done: number, total: number) => void,
   signal?: AbortSignal
 ) {
-  if (isMobileDevice()) {
-    let done = 0;
-    for (const img of images) {
-      if (signal?.aborted) return;
-      await downloadImage(img.id, img.title);
-      done++;
-      if (onProgress) onProgress(done, images.length);
-    }
-    return;
-  }
-
-  // Gépen: ZIP — letöltés haladásjelzéssel, tömörítés nélkül (gyors)
+  // Gépen ÉS mobilon is: egy ZIP-be (STORE, tömörítés nélkül).
   const zip = new JSZip();
   const total = images.length;
   let done = 0;
+  let added = 0; // hány fájl került ténylegesen a ZIP-be
 
   const CONCURRENCY = 5;
   let cursor = 0;
@@ -198,12 +188,14 @@ export async function downloadImagesAll(
       try {
         const url = await getImageDownloadUrl(img.id);
         const res = await fetch(url, { mode: "cors", signal });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const blob = await res.blob();
         const ext = (blob.type.split("/")[1] || "jpg").split("+")[0];
         const safeTitle = (img.title || `image-${i + 1}`).replace(/[^\w.-]+/g, "_");
         zip.file(`${safeTitle}.${ext}`, blob, { compression: "STORE" });
-      } catch {
-        // egy hibás kép vagy megszakítás kimarad
+        added++;
+      } catch (err) {
+        console.error("[zip] kép kimaradt:", img.id, err);
       }
       done++;
       if (onProgress) onProgress(done, total);
@@ -218,15 +210,30 @@ export async function downloadImagesAll(
 
   if (signal?.aborted) return;
 
-  const content = await zip.generateAsync({ type: "blob", compression: "STORE" });
-  const blobUrl = URL.createObjectURL(content);
-  const a = document.createElement("a");
-  a.href = blobUrl;
-  a.download = "photos.zip";
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(blobUrl), 2000);
+  if (added === 0) {
+    alert("A letöltés nem sikerült (a fájlok nem elérhetők). Próbáld újra később.");
+    return;
+  }
+
+  await finalizeZip(zip, "photos.zip");
+}
+
+// A ZIP legenerálása és letöltése, hibakezeléssel
+async function finalizeZip(zip: JSZip, filename: string) {
+  try {
+    const content = await zip.generateAsync({ type: "blob", compression: "STORE" });
+    const blobUrl = URL.createObjectURL(content);
+    const a = document.createElement("a");
+    a.href = blobUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 4000);
+  } catch (err) {
+    console.error("[zip] generálás hiba:", err);
+    alert("A ZIP létrehozása nem sikerült. Lehet, hogy túl nagy a tartalom ehhez a böngészőhöz.");
+  }
 }
 
 
@@ -243,26 +250,10 @@ export async function downloadFolderZip(
 ) {
   const total = videos.length + images.length;
   let done = 0;
+  let added = 0;
   const safeFolder = (folderName || "mappa").replace(/[^\w.-]+/g, "_");
 
-  // ---- Mobil: egyenként (galériába), nem ZIP ----
-  if (isMobileDevice()) {
-    for (const v of videos) {
-      if (signal?.aborted) return;
-      await downloadVideo(v.id, "", `${v.title}.mp4`, 0);
-      done++;
-      if (onProgress) onProgress(done, total);
-    }
-    for (const img of images) {
-      if (signal?.aborted) return;
-      await downloadImage(img.id, img.title);
-      done++;
-      if (onProgress) onProgress(done, total);
-    }
-    return;
-  }
-
-  // ---- Gép: minden egy ZIP-be ----
+  // Gépen ÉS mobilon is: minden egy ZIP-be.
   const zip = new JSZip();
 
   // Képek (párhuzamosan)
@@ -276,12 +267,14 @@ export async function downloadFolderZip(
       try {
         const url = await getImageDownloadUrl(img.id);
         const res = await fetch(url, { mode: "cors", signal });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const blob = await res.blob();
         const ext = (blob.type.split("/")[1] || "jpg").split("+")[0];
         const safe = (img.title || `kep-${i + 1}`).replace(/[^\w.-]+/g, "_");
         zip.file(`${safe}.${ext}`, blob, { compression: "STORE" });
-      } catch {
-        // hibás kép kimarad
+        added++;
+      } catch (err) {
+        console.error("[zip] kép kimaradt:", img.id, err);
       }
       done++;
       if (onProgress) onProgress(done, total);
@@ -298,11 +291,13 @@ export async function downloadFolderZip(
     try {
       const url = await getVideoDownloadUrl(v.id);
       const res = await fetch(url, { mode: "cors", signal });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const blob = await res.blob();
       const safe = (v.title || `video-${i + 1}`).replace(/[^\w.-]+/g, "_");
       zip.file(`${safe}.mp4`, blob, { compression: "STORE" });
-    } catch {
-      // hibás videó kimarad
+      added++;
+    } catch (err) {
+      console.error("[zip] videó kimaradt:", v.id, err);
     }
     done++;
     if (onProgress) onProgress(done, total);
@@ -310,13 +305,10 @@ export async function downloadFolderZip(
 
   if (signal?.aborted) return;
 
-  const content = await zip.generateAsync({ type: "blob", compression: "STORE" });
-  const blobUrl = URL.createObjectURL(content);
-  const a = document.createElement("a");
-  a.href = blobUrl;
-  a.download = `${safeFolder}.zip`;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(blobUrl), 2000);
+  if (added === 0) {
+    alert("A letöltés nem sikerült (a fájlok nem elérhetők). Próbáld újra később.");
+    return;
+  }
+
+  await finalizeZip(zip, `${safeFolder}.zip`);
 }
