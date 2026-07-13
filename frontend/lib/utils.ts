@@ -317,6 +317,7 @@ export async function downloadFolderZip(
 // Teljes projekt EGY ZIP-be, a ZIP-en belül megtartva a mappaszerkezetet.
 // A folder mező adja meg, melyik almappába kerüljön a fájl (null/"" = gyökér).
 export async function downloadEverythingZip(
+  projectName: string,
   videos: { id: string; title: string; folder?: string | null }[],
   images: { id: string; title: string; folder?: string | null }[],
   onProgress?: (done: number, total: number) => void,
@@ -396,5 +397,6 @@ export async function downloadEverythingZip(
     return;
   }
 
-  await finalizeZip(zip, "projekt.zip");
+  const safeName = (projectName || "projekt").replace(/[^\w.-]+/g, "_");
+  await finalizeZip(zip, `${safeName}.zip`);
 }
