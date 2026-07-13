@@ -15,7 +15,7 @@ import { PublicProject, Video, Image as ImageType, startPayment } from "@/lib/ap
 import { Button } from "@/components/ui/button";
 import { VideoCard } from "@/components/video-card";
 import { VideoPlayer } from "@/components/video-player";
-import { downloadVideo, downloadImage, downloadImagesAll, downloadFolderZip } from "@/lib/utils";
+import { downloadVideo, downloadImage, downloadImagesAll, downloadFolderZip, downloadEverythingZip } from "@/lib/utils";
 
 
 const CONTENTBEE_ACCENT = "rgb(243, 199, 68)";
@@ -72,6 +72,7 @@ export function PortalView({
     : "/default-cover-desktop.png";
 
   const folders = project.folders || [];
+  const folderNameById = new Map(folders.map((f) => [f.id, f.name]));
   const looseVideos = project.videos.filter((v) => !v.folder_id);
   const foldersWithVideos = folders
       .map((f) => ({
@@ -178,7 +179,19 @@ return (
               transition={{ duration: 0.8, delay: 0.24, ease: [0.16, 1, 0.3, 1] }}
               className="mt-9 flex flex-wrap items-center gap-3"
             >
-              <DownloadAllButton videos={project.videos} images={allImages} />
+              <DownloadAllButton
+                projectName={project.title}
+                videos={project.videos.map((v) => ({
+                  id: v.id,
+                  title: v.title,
+                  folder: v.folder_id ? folderNameById.get(v.folder_id) || null : null,
+                }))}
+                images={allImages.map((i) => ({
+                  id: i.id,
+                  title: i.title,
+                  folder: i.folder_id ? folderNameById.get(i.folder_id) || null : null,
+                }))}
+              />
               {project.videos.length > 0 && (
                 <Button variant="ghost" size="lg" asChild>
                   <a href="#films">
@@ -747,11 +760,13 @@ function ImageLightbox({
 }
 
 function DownloadAllButton({
+  projectName,
   videos,
   images,
 }: {
-  videos: Video[];
-  images: ImageType[];
+  projectName: string;
+  videos: { id: string; title: string; folder: string | null }[];
+  images: { id: string; title: string; folder: string | null }[];
 }) {
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<string>("");
@@ -766,37 +781,26 @@ function DownloadAllButton({
     const controller = new AbortController();
     abortRef.current = controller;
     setBusy(true);
+    startedAt.current = Date.now();
+    setStatus("Előkészítés…");
     try {
-      // 1) Videók egyenként
-      const playable = videos.filter((v) => v.mp4_url);
-      for (let i = 0; i < playable.length; i++) {
-        if (controller.signal.aborted) return;
-        const v = playable[i];
-        setStatus(`Videó ${i + 1} / ${playable.length}`);
-        await downloadVideo(v.id, v.mp4_url, `${v.title}.mp4`, v.size_bytes);
-        await new Promise((r) => setTimeout(r, 800));
-      }
-
-      // 2) Képek ZIP-be, haladásjelzéssel
-      if (images.length > 0 && !controller.signal.aborted) {
-        startedAt.current = Date.now();
-        setStatus(`Fotók 0 / ${images.length}`);
-        await downloadImagesAll(
-          images.map((i) => ({ id: i.id, title: i.title })),
-          (done, total) => {
-            if (done === 0) {
-              setStatus(`Fotók 0 / ${total}`);
-              return;
-            }
-            const elapsed = (Date.now() - startedAt.current) / 1000;
-            const remaining = Math.round((elapsed / done) * (total - done));
-            const timeStr =
-              remaining < 60 ? `~${remaining} mp` : `~${Math.ceil(remaining / 60)} perc`;
-            setStatus(`Fotók ${done} / ${total} · ${timeStr}`);
-          },
-          controller.signal
-        );
-      }
+      await downloadEverythingZip(
+        projectName,
+        videos,
+        images,
+        (done, total) => {
+          if (done === 0) {
+            setStatus(`0 / ${total}`);
+            return;
+          }
+          const elapsed = (Date.now() - startedAt.current) / 1000;
+          const remaining = Math.round((elapsed / done) * (total - done));
+          const timeStr =
+            remaining < 60 ? `~${remaining} mp` : `~${Math.ceil(remaining / 60)} perc`;
+          setStatus(`${done} / ${total} · ${timeStr}`);
+        },
+        controller.signal
+      );
     } finally {
       setBusy(false);
       setStatus("");
