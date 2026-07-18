@@ -473,13 +473,11 @@ function FolderSection({
             {videos.length} videó
             {folderImages.length > 0 ? ` · ${folderImages.length} fotó` : ""}
           </span>
-          {folderImages.length === 0 && (
-            <FolderDownloadButton
-              folderName={name}
-              videos={videos}
-              images={folderImages}
-            />
-          )}
+          <FolderDownloadButton
+            folderName={name}
+            videos={videos}
+            images={folderImages}
+          />
         </div>
       </div>
 
