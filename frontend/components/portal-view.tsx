@@ -74,22 +74,19 @@ export function PortalView({
   const folders = project.folders || [];
   const folderNameById = new Map(folders.map((f) => [f.id, f.name]));
   const looseVideos = project.videos.filter((v) => !v.folder_id);
-  const foldersWithVideos = folders
-      .map((f) => ({
-        folder: f,
-        videos: project.videos.filter((v) => v.folder_id === f.id),
-      }))
-      .filter((g) => g.videos.length > 0)
-      .sort((a, b) => b.folder.name.localeCompare(a.folder.name, "hu"));
 
   const allImages = project.images || [];
   const looseImages = allImages.filter((i) => !i.folder_id);
-  const foldersWithImages = folders
+
+  // Egységes mappa-lista: minden mappa a saját videóival ÉS képeivel.
+  // Csak azok a mappák, amikben van legalább egy elem. Legújabb (név szerint fordítva) elöl.
+  const foldersWithContent = folders
     .map((f) => ({
       folder: f,
+      videos: project.videos.filter((v) => v.folder_id === f.id),
       images: allImages.filter((i) => i.folder_id === f.id),
     }))
-    .filter((g) => g.images.length > 0)
+    .filter((g) => g.videos.length > 0 || g.images.length > 0)
     .sort((a, b) => b.folder.name.localeCompare(a.folder.name, "hu"));
 
   function daysUntilExpiry(): number | null {
@@ -280,7 +277,8 @@ return (
       )}
 
       {/* ---------- Videók ---------- */}
-      {!isExpired && project.videos.length > 0 && (
+      {/* ---------- Mappa nélküli (laza) videók ---------- */}
+      {!isExpired && looseVideos.length > 0 && (
         <section id="films" className="mx-auto max-w-6xl px-6 py-20 sm:py-28">
           <div className="mb-10 flex items-end justify-between border-b border-ink-line pb-6">
             <h2 className="font-display text-2xl text-bone sm:text-3xl">Videók</h2>
@@ -288,62 +286,50 @@ return (
               Megtekintés · Letöltés
             </span>
           </div>
-
-          <div className="space-y-12">
-            {looseVideos.length > 0 && (
-              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                {looseVideos.map((v, i) => (
-                  <VideoCard
-                    key={v.id}
-                    video={v}
-                    index={i}
-                    onPlay={markVideoSeen}
-                    isNew={!seenVideos.has(v.id)}
-                  />
-                ))}
-              </div>
-            )}
-
-            {foldersWithVideos.map(({ folder, videos }) => (
-              <FolderSection
-                key={folder.id}
-                name={folder.name}
-                videos={videos}
-                folderImages={allImages.filter((i) => i.folder_id === folder.id)}
-                onPlay={setActive}
-                accent={accent}
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {looseVideos.map((v, i) => (
+              <VideoCard
+                key={v.id}
+                video={v}
+                index={i}
+                onPlay={markVideoSeen}
+                isNew={!seenVideos.has(v.id)}
               />
             ))}
           </div>
         </section>
       )}
 
-      {/* ---------- Fotók ---------- */}
-      {!isExpired && allImages.length > 0 && (
+      {/* ---------- Mappa nélküli (laza) fotók ---------- */}
+      {!isExpired && looseImages.length > 0 && (
         <section id="images" className="mx-auto max-w-6xl px-6 pb-20 sm:pb-28">
           <div className="mb-10 flex items-end justify-between border-b border-ink-line pb-6">
             <h2 className="font-display text-2xl text-bone sm:text-3xl">Fotók</h2>
             <ImagesDownloadButton
-              images={allImages}
-              label={`Összes letöltése (${allImages.length})`}
+              images={looseImages}
+              label={`Összes letöltése (${looseImages.length})`}
             />
           </div>
+          <ImageGrid
+            images={looseImages}
+            onOpen={(imgs, idx) => setLightbox({ images: imgs, index: idx })}
+          />
+        </section>
+      )}
 
+      {/* ---------- Mappák (mindegyik: videók + fotók egy helyen) ---------- */}
+      {!isExpired && foldersWithContent.length > 0 && (
+        <section className="mx-auto max-w-6xl px-6 pb-20 sm:pb-28">
           <div className="space-y-12">
-            {looseImages.length > 0 && (
-              <ImageGrid
-                images={looseImages}
-                onOpen={(imgs, idx) => setLightbox({ images: imgs, index: idx })}
-              />
-            )}
-
-            {foldersWithImages.map(({ folder, images }) => (
-              <ImageFolderSection
+            {foldersWithContent.map(({ folder, videos, images }) => (
+              <FolderSection
                 key={folder.id}
                 name={folder.name}
+                videos={videos}
                 images={images}
-                folderVideos={project.videos.filter((v) => v.folder_id === folder.id)}
-                onOpen={(imgs, idx) => setLightbox({ images: imgs, index: idx })}
+                onPlay={markVideoSeen}
+                onOpenImage={(imgs, idx) => setLightbox({ images: imgs, index: idx })}
+                seenVideos={seenVideos}
                 accent={accent}
               />
             ))}
@@ -437,85 +423,28 @@ return (
 function FolderSection({
   name,
   videos,
-  folderImages,
+  images,
   onPlay,
+  onOpenImage,
+  seenVideos,
   accent,
 }: {
   name: string;
   videos: Video[];
-  folderImages: ImageType[];
-  onPlay: (v: Video) => void;
-  accent?: string;
-}) {
-  const [open, setOpen] = useState(false);
-
-  return (
-    <div>
-      <div className="mb-6 border-b border-ink-line pb-3">
-        <button
-          onClick={() => setOpen((o) => !o)}
-          className="flex w-full items-start gap-3 text-left transition hover:opacity-80"
-        >
-          <h3
-            className="min-w-0 flex-1 font-display text-xl text-bone sm:text-2xl"
-            style={accent ? { color: accent } : undefined}
-          >
-            {name}
-          </h3>
-          <ChevronDown
-            className={`mt-1.5 h-5 w-5 shrink-0 text-mist transition-transform duration-300 ${
-              open ? "rotate-180" : ""
-            }`}
-          />
-        </button>
-        <div className="mt-2 flex items-center justify-between gap-3">
-          <span className="font-mono text-[11px] uppercase tracking-eyebrow text-mist">
-            {videos.length} videó
-            {folderImages.length > 0 ? ` · ${folderImages.length} fotó` : ""}
-          </span>
-          <FolderDownloadButton
-            folderName={name}
-            videos={videos}
-            images={folderImages}
-          />
-        </div>
-      </div>
-
-      <AnimatePresence initial={false}>
-        {open && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-            className="overflow-hidden"
-          >
-            <div className="grid grid-cols-1 gap-6 pb-2 sm:grid-cols-2 lg:grid-cols-3">
-              {videos.map((v, i) => (
-                <VideoCard key={v.id} video={v} index={i} onPlay={onPlay} />
-              ))}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-}
-
-function ImageFolderSection({
-  name,
-  images,
-  folderVideos,
-  onOpen,
-  accent,
-}: {
-  name: string;
   images: ImageType[];
-  folderVideos: Video[];
-  onOpen: (images: ImageType[], index: number) => void;
+  onPlay: (v: Video) => void;
+  onOpenImage: (images: ImageType[], index: number) => void;
+  seenVideos: Set<string>;
   accent?: string;
 }) {
   const [open, setOpen] = useState(false);
+
+  const countLabel = [
+    videos.length > 0 ? `${videos.length} videó` : "",
+    images.length > 0 ? `${images.length} fotó` : "",
+  ]
+    .filter(Boolean)
+    .join(" · ");
 
   return (
     <div>
@@ -538,10 +467,9 @@ function ImageFolderSection({
         </button>
         <div className="mt-2 flex items-center justify-between gap-3">
           <span className="font-mono text-[11px] uppercase tracking-eyebrow text-mist">
-            {images.length} fotó
-            {folderVideos.length > 0 ? ` · ${folderVideos.length} videó` : ""}
+            {countLabel}
           </span>
-          <FolderDownloadButton folderName={name} videos={folderVideos} images={images} />
+          <FolderDownloadButton folderName={name} videos={videos} images={images} />
         </div>
       </div>
 
@@ -554,9 +482,27 @@ function ImageFolderSection({
             transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
             className="overflow-hidden"
           >
-            <div className="pb-2">
-              <ImageGrid images={images} onOpen={onOpen} />
-            </div>
+            {/* Előbb a videók */}
+            {videos.length > 0 && (
+              <div className="grid grid-cols-1 gap-6 pb-2 sm:grid-cols-2 lg:grid-cols-3">
+                {videos.map((v, i) => (
+                  <VideoCard
+                    key={v.id}
+                    video={v}
+                    index={i}
+                    onPlay={onPlay}
+                    isNew={!seenVideos.has(v.id)}
+                  />
+                ))}
+              </div>
+            )}
+
+            {/* Utána a fotók */}
+            {images.length > 0 && (
+              <div className={videos.length > 0 ? "mt-8" : ""}>
+                <ImageGrid images={images} onOpen={onOpenImage} />
+              </div>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
