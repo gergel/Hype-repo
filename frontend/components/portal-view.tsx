@@ -473,11 +473,13 @@ function FolderSection({
             {videos.length} videó
             {folderImages.length > 0 ? ` · ${folderImages.length} fotó` : ""}
           </span>
-          <FolderDownloadButton
-            folderName={name}
-            videos={videos}
-            images={folderImages}
-          />
+          {folderImages.length === 0 && (
+            <FolderDownloadButton
+              folderName={name}
+              videos={videos}
+              images={folderImages}
+            />
+          )}
         </div>
       </div>
 
@@ -516,9 +518,6 @@ function ImageFolderSection({
   accent?: string;
 }) {
   const [open, setOpen] = useState(false);
-  // Ha a mappában van videó is, akkor a videó-szekció fejlécében már van
-  // letöltő gomb az EGÉSZ mappára — itt nem duplázzuk.
-  const showDownload = folderVideos.length === 0;
 
   return (
     <div>
@@ -542,10 +541,9 @@ function ImageFolderSection({
         <div className="mt-2 flex items-center justify-between gap-3">
           <span className="font-mono text-[11px] uppercase tracking-eyebrow text-mist">
             {images.length} fotó
+            {folderVideos.length > 0 ? ` · ${folderVideos.length} videó` : ""}
           </span>
-          {showDownload && (
-            <FolderDownloadButton folderName={name} videos={[]} images={images} />
-          )}
+          <FolderDownloadButton folderName={name} videos={folderVideos} images={images} />
         </div>
       </div>
 
