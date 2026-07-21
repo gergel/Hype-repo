@@ -446,6 +446,9 @@ function FolderSection({
     .filter(Boolean)
     .join(" · ");
 
+  // A mappa "új", ha van benne legalább egy még meg nem nyitott videó
+  const hasNewVideo = videos.some((v) => !seenVideos.has(v.id));
+
   return (
     <div>
       <div className="mb-6 border-b border-ink-line pb-3">
@@ -458,6 +461,11 @@ function FolderSection({
             style={accent ? { color: accent } : undefined}
           >
             {name}
+            {hasNewVideo && (
+              <span className="ml-2.5 inline-block translate-y-[-2px] rounded-full bg-ember px-2 py-0.5 align-middle font-mono text-[10px] font-semibold uppercase tracking-eyebrow text-white">
+                Új
+              </span>
+            )}
           </h3>
           <ChevronDown
             className={`mt-1.5 h-5 w-5 shrink-0 text-mist transition-transform duration-300 ${
