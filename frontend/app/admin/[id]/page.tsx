@@ -640,12 +640,12 @@ function makeShare() {
   const selectedCount = selectedVideos.size + selectedImages.size;
 
   return (
-    <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6 sm:py-12">
+    <main className="mx-auto max-w-5xl overflow-x-hidden px-4 py-8 sm:px-6 sm:py-12">
       <a href="/admin" className="font-mono text-xs uppercase tracking-eyebrow text-mist">
         ← Összes projekt
       </a>
 
-      <div className="mt-4 grid gap-8 lg:grid-cols-[1.1fr_1fr]">
+      <div className="mt-4 grid gap-8 lg:grid-cols-[1.1fr_1fr] [&>section]:min-w-0">
         {/* Beállítások */}
         <section className="rounded-2xl border border-ink-line bg-ink-card p-4 sm:p-6">
           <h2 className="font-display text-xl text-bone">Projekt adatai</h2>
@@ -1162,7 +1162,7 @@ function makeShare() {
                     <button
                       title="Kivétel a mappából"
                       onClick={() => onRemoveFromFolder(v.id)}
-                      className="text-mist transition hover:text-bone"
+                      className="shrink-0 text-mist transition hover:text-bone"
                     >
                       <ArrowLeft className="h-4 w-4" />
                     </button>
@@ -1170,7 +1170,7 @@ function makeShare() {
                   <button
                     title="Átnevezés"
                     onClick={() => onRenameVideo(v.id)}
-                    className="text-mist transition hover:text-bone"
+                    className="shrink-0 text-mist transition hover:text-bone"
                   >
                     <Pencil className="h-4 w-4" />
                   </button>
@@ -1180,14 +1180,14 @@ function makeShare() {
                       replaceId.current = v.id;
                       replaceRef.current?.click();
                     }}
-                    className="text-mist transition hover:text-bone"
+                    className="shrink-0 text-mist transition hover:text-bone"
                   >
                     <Replace className="h-4 w-4" />
                   </button>
                   <button
                     title="Törlés"
                     onClick={() => onDeleteVideo(v.id)}
-                    className="text-mist transition hover:text-ember"
+                    className="shrink-0 text-mist transition hover:text-ember"
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>
