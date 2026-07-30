@@ -26,7 +26,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="hu" className={`${display.variable} ${sans.variable} ${mono.variable}`}>
-      <head>
+      <body className="grain font-sans antialiased">
         {/* Barion Base Pixel — csak ha van beállítva Pixel ID */}
         {BARION_PIXEL_ID && (
           <Script id="barion-pixel" strategy="afterInteractive">
@@ -45,22 +45,7 @@ export default function RootLayout({
             `}
           </Script>
         )}
-      </head>
-      <body className="grain font-sans antialiased">
         {children}
-        {/* Barion Pixel noscript fallback */}
-        {BARION_PIXEL_ID && (
-          <noscript>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              height="1"
-              width="1"
-              style={{ display: "none" }}
-              alt="Barion Pixel"
-              src={`https://pixel.barion.com/a.gif?ba_pixel_id=${BARION_PIXEL_ID}&ev=contentView&noscript=1`}
-            />
-          </noscript>
-        )}
       </body>
     </html>
   );
