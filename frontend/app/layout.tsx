@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Fraunces, Inter, JetBrains_Mono } from "next/font/google";
 import Script from "next/script";
+import { CookieConsent } from "@/components/cookie-consent";
 import "./globals.css";
 
 const display = Fraunces({
@@ -46,6 +47,7 @@ export default function RootLayout({
           </Script>
         )}
         {children}
+        <CookieConsent />
       </body>
     </html>
   );
