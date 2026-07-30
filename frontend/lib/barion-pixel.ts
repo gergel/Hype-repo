@@ -64,3 +64,19 @@ export function pixelPurchase(
     orderId: paymentId,
   });
 }
+
+// Süti-hozzájárulás — a felhasználó elfogadta a marketing sütiket.
+// Ezt a grantConsent eseményt a Barion Full Pixelhez el kell küldeni,
+// hogy a Pixel marketing célú adatokat is küldhessen.
+export function pixelGrantConsent() {
+  const fn = bp();
+  if (!fn) return;
+  fn("consent", "grantConsent", {});
+}
+
+// A felhasználó elutasította — visszavonjuk a hozzájárulást.
+export function pixelRejectConsent() {
+  const fn = bp();
+  if (!fn) return;
+  fn("consent", "rejectConsent", {});
+}
