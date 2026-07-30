@@ -1226,9 +1226,16 @@ function TermsModal({ onClose }: { onClose: () => void }) {
               <h3 className="font-display text-base text-bone">Adatkezelés</h3>
               <p className="mt-2">
                 Amennyiben az elkészült anyagok személyes adatokat tartalmaznak, azok
-                kezelése és megőrzése a Hype Productions Kft. mindenkor hatályos
-                Adatkezelési Tájékoztatójában, valamint az alkalmazandó szerződéses
-                feltételekben foglaltak szerint történik.
+                kezelése és megőrzése a Hype Productions Kft. mindenkor hatályos{" "}
+                <a
+                  href="/adatvedelem"
+                  target="_blank"
+                  className="text-bone underline underline-offset-4 transition hover:text-ember"
+                >
+                  Adatkezelési Tájékoztatójában
+                </a>
+                , valamint az alkalmazandó szerződéses feltételekben foglaltak szerint
+                történik.
               </p>
               <p className="mt-2">
                 A HypeClient online tárhelyszolgáltatás részletes feltételeit, díjait, a
