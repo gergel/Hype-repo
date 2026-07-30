@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { VideoCard } from "@/components/video-card";
 import { VideoPlayer } from "@/components/video-player";
 import { downloadVideo, downloadImage, downloadImagesAll, downloadFolderZip, downloadEverythingZip } from "@/lib/utils";
+import { pixelContentView, pixelInitiateCheckout } from "@/lib/barion-pixel";
 
 
 const CONTENTBEE_ACCENT = "rgb(243, 199, 68)";
@@ -41,6 +42,11 @@ export function PortalView({
       if (raw) setSeenVideos(new Set(JSON.parse(raw)));
     } catch {}
   }, [project.slug]);
+
+  // Barion Pixel: oldalmegtekintés a portál betöltésekor
+  useEffect(() => {
+    pixelContentView(project.title);
+  }, [project.title]);
 
   function markVideoSeen(v: Video) {
     setActive(v); // a meglévő megnyitás
@@ -930,6 +936,14 @@ function PaymentPackages({
   async function pay(code: string) {
     if (!canPay) return;
     setBusy(code);
+
+    // Barion Pixel: fizetés indítása esemény
+    const pkg = packages.find((p) => p.code === code);
+    if (pkg) {
+      const gross = parseInt(pkg.price.replace(/[^\d]/g, ""), 10) || 0;
+      pixelInitiateCheckout(code, pkg.label, gross);
+    }
+
     try {
       const url = await startPayment(slug, code, {
         type: billingType,
@@ -1212,9 +1226,16 @@ function TermsModal({ onClose }: { onClose: () => void }) {
               <h3 className="font-display text-base text-bone">Adatkezelés</h3>
               <p className="mt-2">
                 Amennyiben az elkészült anyagok személyes adatokat tartalmaznak, azok
-                kezelése és megőrzése a Hype Productions Kft. mindenkor hatályos
-                Adatkezelési Tájékoztatójában, valamint az alkalmazandó szerződéses
-                feltételekben foglaltak szerint történik.
+                kezelése és megőrzése a Hype Productions Kft. mindenkor hatályos{" "}
+                <a
+                  href="/adatvedelem"
+                  target="_blank"
+                  className="text-bone underline underline-offset-4 transition hover:text-ember"
+                >
+                  Adatkezelési Tájékoztatójában
+                </a>
+                , valamint az alkalmazandó szerződéses feltételekben foglaltak szerint
+                történik.
               </p>
               <p className="mt-2">
                 A HypeClient online tárhelyszolgáltatás részletes feltételeit, díjait, a
