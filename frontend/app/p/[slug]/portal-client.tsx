@@ -4,6 +4,7 @@ import { useParams, useSearchParams } from "next/navigation";
 import { getPublicProject, getByShare, PublicProject } from "@/lib/api";
 import { PortalView } from "@/components/portal-view";
 import { PasswordGate } from "@/components/password-gate";
+import { pixelPurchase } from "@/lib/barion-pixel";
 
 
 export default function PortalClient() {
@@ -95,6 +96,29 @@ function PortalContent() {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slug, shareToken]);
+
+  // Barion Pixel: sikeres fizetés utáni visszatérés kezelése.
+  // A backend a RedirectUrl-be teszi: ?paid=1&pkg=CODE&amt=GROSS&pid=PAYMENTID
+  useEffect(() => {
+    if (search.get("paid") !== "1") return;
+    const pkg = search.get("pkg") || "";
+    const amt = parseInt(search.get("amt") || "0", 10) || 0;
+    const pid = search.get("pid") || "";
+    const labels: Record<string, string> = {
+      "1month": "1 hónap",
+      "180days": "180 nap",
+      "1year": "1 év",
+    };
+    pixelPurchase(pkg, labels[pkg] || "Tárhely-hosszabbítás", amt, pid);
+
+    // URL kitisztítása, hogy frissítéskor ne küldje újra
+    try {
+      const url = new URL(window.location.href);
+      ["paid", "pkg", "amt", "pid"].forEach((k) => url.searchParams.delete(k));
+      window.history.replaceState({}, "", url.pathname + url.search);
+    } catch {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   if (loading) {
     return (
