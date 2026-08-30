@@ -57,7 +57,12 @@ Migrations run automatically on API start (`alembic upgrade head`).
 2. Create an R2 API token (Access Key ID + Secret).
 3. Attach a public custom domain to the bucket (e.g. `media.hype.studio`) so HLS
    playlists and segments are publicly fetchable, and set `R2_PUBLIC_URL` to it.
-4. Add a CORS policy on the bucket allowing `GET` from your frontend origin.
+4. Add a CORS policy on the bucket allowing `GET`/`HEAD` from your frontend origin —
+   run `python scripts/setup_r2_cors.py` from `backend/` (uses `FRONTEND_URL` from
+   `.env`, or pass one or more origins explicitly). Without this, single-file
+   downloads still work (plain browser navigation), but the bulk/ZIP download
+   fails for every file with "A letöltés nem sikerült", since it uses
+   `fetch(..., { mode: "cors" })` under the hood.
 
 ## Notion setup
 
